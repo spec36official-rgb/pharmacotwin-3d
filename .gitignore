@@ -18,7 +18,7 @@ service-account*.json
 
 # Local Hackathon Reference Docs & Personal Lecture PDFs (Keep private)
 독성학강의/
-[External]*.pdf
+\[External\]*.pdf
 룰체크_현장.md
 ANTIGRAVITY_CONTEXT.md
 sample_UI.html
