@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PharmacoTwin 3D — System Architecture & Mathematical Pipeline</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      background: #060a12;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 32px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+    h1 { color: #38bdf8; margin-bottom: 6px; }
+    h2 { color: #818cf8; border-bottom: 1px solid rgba(56,189,248,0.2); padding-bottom: 6px; margin-top: 28px; }
+    .card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+    code, pre {
+      font-family: 'JetBrains Mono', monospace;
+      background: #050811;
+      color: #6ee7b7;
+      padding: 2px 6px;
+      border-radius: 5px;
+    }
+    pre { padding: 14px; overflow-x: auto; border: 1px solid rgba(56,189,248,0.18); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .btn-back {
+      display: inline-block;
+      padding: 8px 14px;
+      background: #0284c7;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="btn-back">← Back to Live 3D Simulator</a>
+    <h1>PharmacoTwin 3D — Multi-Scale Architecture &amp; Verification Pipeline</h1>
+    <p style="color:#94a3b8;">Track 2: Hard Tech (Biotech, Physics &amp; Molecular Simulation) · Google DeepMind AI Hackathon</p>
+
+    <div class="card">
+      <h2>1. End-to-End Multi-Scale Architecture</h2>
+      <pre>
+[User Input: Drug / Novel SMILES + Route (Oral/IV) + Patient CrCl &amp; Phase 3 PGx]
+       │
+       ├──► Phase 2: AlphaFold 3 Co-Folding Approximator (backend/argon_agent.py)
+       │      └─ Generates AF3 Server JSON Spec + Predicts 3D Pocket Contacts r_ij (Å), pLDDT, ipTM
+       │
+       ├──► Thermodynamic Physics Engine (backend/pkpd_engine.py)
+       │      ├─ 12-6 Lennard-Jones + Screened Coulomb + Desolvation/Rotor Entropy
+       │      ├─ Gibbs Free Energy:  ΔG_bind (kcal/mol) ──► Kd = exp(ΔG / R·T)
+       │      └─ Cheng-Prusoff &amp; Plasma Protein Binding (fu) ──► EC50,tox (mg/L)
+       │
+       ├──► 2-Compartment PK/PD + Hepatic GSH ODE Solver (scipy.integrate.solve_ivp RK45)
+       │      ├─ Cockcroft-Gault CrCl &amp; Mosteller BSA scaling
+       │      ├─ Coupled ODEs: A_GI(t), A_central(t), A_periph(t), C_effect(t), A_NAPQI(t), GSH(t)
+       │      └─ 8-Organ Partitioning (Kp) &amp; Hill Toxicity Series (Liver, Kidney, Heart, Brain, Blood, Lungs, GI, Ocular)
+       │
+       ├──► Gemini 4 Argon (1M Context) + 5-Check Pass/Fail Verification Loop
+       │      ├─ Cross-references 7-Week Pharmacy Toxicology Curriculum with ODE &amp; 3D Pocket outputs
+       │      ├─ Deterministic 5/5 Verification Checks (Gibbs Identity, ODE Positivity, CrCl Scaling, 8-Organ Bounds, Safety Gate)
+       │      └─ Mandatory Human-in-the-Loop Clinical/PharmD Verification Gate
+       │
+       └──► Dual WebGL 3D Frontend (Three.js + 3Dmol.js + Chart.js)
+              ├─ Three.js Digital Twin with User's Photo UV-Mapped onto 3D Cranial Mesh
+              ├─ Animated Oral Swallowing &amp; IV Syringe Injection + 320 Bloodstream Particles
+              └─ Interactive 3Dmol.js Receptor-Ligand Binding Pocket with Å Contact Labels
+      </pre>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <h3>Phase 1: PK/PD + 3D Twin</h3>
+        <p>Coupled 2-compartment differential equations with GI absorption, portal first-pass hepatic GSH depletion, and 8-organ toxicity heatmaps.</p>
+      </div>
+      <div class="card">
+        <h3>Phase 2: AlphaFold 3 Bridge</h3>
+        <p>Converts unprofiled SMILES structures into AlphaFold 3 co-folding specifications, inter-atomic distances $r_{ij}$, $\Delta G$, $K_d$, and $EC_{50,\text{tox}}$.</p>
+      </div>
+      <div class="card">
+        <h3>Phase 3: PGx Personalization</h3>
+        <p>Models patient-specific `CYP2E1`, `CYP3A4`, `KCNH2/hERG`, and `G6PD` regulatory variants alongside Cockcroft-Gault renal clearance.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

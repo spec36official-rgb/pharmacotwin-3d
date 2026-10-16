@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PharmacoTwin 3D — Multi-Scale PK/PD & Structural Toxicity Simulator (Gemini 4 Argon + AlphaFold 3)</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <!-- Three.js, 3Dmol.js, Chart.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="top-navbar">
+    <div class="brand-group">
+      <div class="brand-logo">PT</div>
+      <div class="brand-title">
+        <h1>
+          PharmacoTwin 3D
+          <span class="badge-pill badge-argon">gemini-4-argon (1M Context)</span>
+          <span class="badge-pill badge-af3">AlphaFold 3 Co-Folding</span>
+        </h1>
+        <div class="brand-subtitle">
+          Multi-Scale 3D Human Pharmacokinetic/Pharmacodynamic (PK/PD) &amp; Structural Off-Target Toxicity Simulator
+        </div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="btn-open-af3" class="btn btn-af3">
+        🧬 Phase 2: AlphaFold 3 Novel Drug Approximator
+      </button>
+      <button id="btn-open-curriculum" class="btn btn-secondary">
+        📚 Toxicology Curriculum Reference (7 Weeks)
+      </button>
+      <a href="/architecture" target="_blank" class="btn btn-secondary" style="text-decoration:none;">
+        📐 System Architecture
+      </a>
+    </div>
+  </header>
+
+  <!-- Main 3-Column Scientific HUD -->
+  <main class="workspace-grid">
+    <!-- ==================== LEFT COLUMN: PATIENT, PGx & DOSING ==================== -->
+    <section class="panel-column">
+      <!-- 1. Patient Digital Twin & Photo-Mapped 3D Avatar -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">👤 Digital Twin Patient Profile</div>
+          <span id="crcl-badge" class="badge-pill badge-verified">CrCl: 115.3 mL/min</span>
+        </div>
+
+        <div class="avatar-profile-row">
+          <div class="avatar-img-wrap">
+            <img id="user-avatar-img" src="/static/assets/user_avatar.jpg" alt="User 3D Twin Face" />
+          </div>
+          <div class="avatar-meta">
+            <h3>Pharmacy Researcher Twin</h3>
+            <p>Photo UV-mapped onto 3D Cranial Mesh</p>
+            <label class="btn-upload-photo">
+              📷 Upload / Update Face Photo
+              <input id="photo-upload-input" type="file" accept="image/*" style="display:none;" />
+            </label>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Age (yrs)</label>
+            <input id="pat-age" type="number" value="24" min="18" max="100" />
+          </div>
+          <div class="form-group">
+            <label>Biological Sex</label>
+            <select id="pat-sex">
+              <option value="M" selected>Male (M)</option>
+              <option value="F">Female (F ×0.85 CrCl)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Weight (kg)</label>
+            <input id="pat-weight" type="number" value="68" min="35" max="180" step="1" />
+          </div>
+          <div class="form-group">
+            <label>Height (cm)</label>
+            <input id="pat-height" type="number" value="175" min="130" max="210" step="1" />
+          </div>
+          <div class="form-group">
+            <label>Serum Creatinine (mg/dL)</label>
+            <input id="pat-scr" type="number" value="0.95" min="0.3" max="8.0" step="0.05" />
+          </div>
+          <div class="form-group">
+            <label>Hepatic Function</label>
+            <select id="pat-hepatic">
+              <option value="normal" selected>Normal (Child-Pugh A)</option>
+              <option value="mild_impairment">Mild Impairment (×0.75)</option>
+              <option value="moderate_impairment">Moderate Cirrhosis (×0.50)</option>
+              <option value="severe_impairment">Severe Failure (×0.28)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Computed PK Parameters Summary Strip -->
+        <div class="thermo-metrics-grid" style="margin-bottom:0;">
+          <div class="thermo-box">
+            <div class="lbl">Systemic CL</div>
+            <div id="pk-cl-readout" class="num">18.2 L/h</div>
+          </div>
+          <div class="thermo-box">
+            <div class="lbl">Vd (Vc + Vp)</div>
+            <div id="pk-vd-readout" class="num">65.0 L</div>
+          </div>
+          <div class="thermo-box">
+            <div class="lbl">Effective t½</div>
+            <div id="pk-thalf-readout" class="num">2.48 h</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Drug Regimen & Administration Route -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">💊 Phase 1: Drug &amp; Dosing Regimen</div>
+          <span class="badge-pill badge-argon">2-Compartment ODE</span>
+        </div>
+
+        <div class="form-group">
+          <label>Select Benchmark Drug (6 Lecture Archetypes)</label>
+          <select id="drug-select"></select>
+        </div>
+
+        <div class="form-group">
+          <label>Administration Route (Triggers 3D Animation)</label>
+          <div class="route-tabs">
+            <div class="route-tab active" data-route="oral">👄 Oral (PO)</div>
+            <div class="route-tab" data-route="iv_bolus">💉 IV Bolus</div>
+            <div class="route-tab" data-route="iv_infusion">💧 IV Infusion</div>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Dose per Admin (mg)</label>
+            <input id="dose-input" type="number" value="1000" min="1" max="30000" step="50" />
+          </div>
+          <div class="form-group">
+            <label>Interval τ (hours)</label>
+            <input id="interval-input" type="number" value="6" min="2" max="48" step="1" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Number of Doses (over 24h Window)</label>
+          <input id="numdoses-input" type="number" value="3" min="1" max="8" step="1" />
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px;">
+          <button id="btn-simulate" class="btn btn-primary" style="width:100%;">
+            ▶ Simulate 3D PK/PD &amp; Toxicity
+          </button>
+          <button id="btn-toxic-demo" class="btn btn-danger-demo" style="width:100%;">
+            ⚠️ Simulate Acute Overdose / Toxicity Scenario
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Phase 3: Pharmacogenomics (PGx) / AlphaGenome Personalization -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">🧬 Phase 3: PGx &amp; AlphaGenome Variants</div>
+          <span class="badge-pill badge-af3">Personalized Susceptibility</span>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>CYP2E1 (NAPQI / Liver)</label>
+            <select id="pgx-cyp2e1">
+              <option value="normal" selected>Wildtype (Normal)</option>
+              <option value="induced">Induced (Ethanol / INH ×2.3)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>CYP3A4 (First-Pass / Clearance)</label>
+            <select id="pgx-cyp3a4">
+              <option value="normal" selected>Normal Metabolizer</option>
+              <option value="inhibited">Inhibited (Ketoconazole ×0.22)</option>
+              <option value="poor">Poor Metabolizer (*22/*22)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>KCNH2 / hERG (Cardiac QT)</label>
+            <select id="pgx-herg">
+              <option value="wildtype" selected>Wildtype Kv11.1</option>
+              <option value="lqt2_carrier">LQT2 Variant (Sensitized hERG)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>G6PD Status (RBC NADPH)</label>
+            <select id="pgx-g6pd">
+              <option value="normal" selected>G6PD Normal</option>
+              <option value="deficient">G6PD Deficient (Hemolysis Risk)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== CENTER COLUMN: 3D HUMAN DIGITAL TWIN & 8 ORGANS ==================== -->
+    <section class="panel-column">
+      <!-- 1. Interactive 3D Human Body + User Photo Head + Vascular Particles -->
+      <div class="hud-card viewport-3d-card">
+        <div class="viewport-overlay-top">
+          <div class="organ-legend-box">
+            <div style="font-weight:700;color:#fff;">3D Anatomical Digital Twin (Click any organ to inspect)</div>
+            <div class="legend-scale">
+              <span><i class="legend-dot" style="background:#10b981;"></i> Safe (&lt;20%)</span>
+              <span><i class="legend-dot" style="background:#f59e0b;"></i> Elevated (35–65%)</span>
+              <span><i class="legend-dot" style="background:#f43f5e;"></i> Critical Toxicity (&gt;65%)</span>
+            </div>
+          </div>
+
+          <div class="viewport-controls-float">
+            <button id="btn-replay-admin" class="btn-hud-mini">💊 Replay Admin Anim</button>
+            <button id="btn-toggle-shell" class="btn-hud-mini">X-Ray Organs Only</button>
+            <button id="btn-toggle-rotate" class="btn-hud-mini">360° Auto-Orbit</button>
+            <button id="btn-reset-cam" class="btn-hud-mini">Reset View</button>
+          </div>
+        </div>
+
+        <!-- Three.js Canvas Mount -->
+        <div id="body3d-canvas-container"></div>
+
+        <!-- 24-Hour Time Scrubber & Instantaneous Compartmental Readout -->
+        <div class="timeline-bar">
+          <div class="timeline-controls-row">
+            <button id="btn-play-timeline" class="btn btn-secondary" style="padding:5px 11px;">
+              ▶ Play 24h
+            </button>
+            <span id="time-readout" class="time-readout">t = 1.5 h</span>
+            <input id="time-slider" type="range" min="0" max="240" value="15" />
+          </div>
+          <div class="instant-metrics-strip">
+            <div class="instant-metric-item">
+              <span style="color:var(--text-muted);">Plasma Cp(t)</span>
+              <span id="inst-cp" class="val">14.2 mg/L</span>
+            </div>
+            <div class="instant-metric-item">
+              <span style="color:var(--text-muted);">Tissue Ct(t)</span>
+              <span id="inst-ct" class="val">8.4 mg/L</span>
+            </div>
+            <div class="instant-metric-item">
+              <span style="color:var(--text-muted);">PD Target Efficacy</span>
+              <span id="inst-eff" class="val" style="color:#38bdf8;">82.5%</span>
+            </div>
+            <div class="instant-metric-item">
+              <span style="color:var(--text-muted);">Hepatic GSH</span>
+              <span id="inst-gsh" class="val" style="color:#10b981;">91.0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 8-Organ Partitioning & Peak Toxicity Heatmap Selector -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">🫀 8-Organ Partitioning (Kp) &amp; Peak Toxicity Index</div>
+          <span style="font-size:11px;color:var(--text-muted);">Click an organ card or 3D mesh to inspect mechanism</span>
+        </div>
+        <div id="organ-grid-8" class="organ-grid-8"></div>
+      </div>
+
+      <!-- 3. Selected Organ Toxicology Lecture Inspector -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div id="insp-organ-name" class="hud-card-title">Liver (Zone 3 Centrilobular) — 간</div>
+          <span class="badge-pill badge-argon">Lecture Curriculum Grounded</span>
+        </div>
+        <div id="insp-organ-metrics" style="font-family:var(--font-mono);font-size:11.5px;color:#38bdf8;margin-bottom:6px;"></div>
+        <p id="insp-organ-mech" style="font-size:12px;color:#e2e8f0;margin-bottom:6px;"></p>
+        <div id="insp-organ-pathway" style="font-size:11.5px;color:#a5b4fc;font-weight:600;margin-bottom:4px;"></div>
+        <div id="insp-organ-biomarkers" style="font-family:var(--font-mono);font-size:11px;color:#6ee7b7;"></div>
+      </div>
+    </section>
+
+    <!-- ==================== RIGHT COLUMN: 3D RECEPTOR, PK/PD CHARTS, ARGON & VERIFICATION ==================== -->
+    <section class="panel-column">
+      <!-- 1. 3Dmol.js Receptor-Ligand Co-Folded Pocket & Thermodynamic Affinity -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">🔬 3D Receptor-Ligand Co-Folded Pocket</div>
+          <span id="af3-conf-badge" class="badge-pill badge-af3">pLDDT 94.8 | ipTM 0.92</span>
+        </div>
+        <div id="receptor-title" style="font-size:11.5px;font-weight:600;color:#cbd5e1;margin-bottom:6px;">
+          Cytochrome P450 2E1 (PDB: 3E6I)
+        </div>
+
+        <div class="mol-viewer-wrap">
+          <div id="mol3d-container"></div>
+        </div>
+
+        <!-- Gibbs Free Energy -> Kd -> EC50_tox Readout -->
+        <div class="thermo-metrics-grid">
+          <div class="thermo-box">
+            <div class="lbl">Binding ΔG</div>
+            <div id="thermo-dg" class="num">-7.84 kcal/mol</div>
+          </div>
+          <div class="thermo-box">
+            <div class="lbl">Dissociation Kd</div>
+            <div id="thermo-kd" class="num">2.98 μM</div>
+          </div>
+          <div class="thermo-box">
+            <div class="lbl">Calc EC50,tox</div>
+            <div id="thermo-ec50" class="num">42.1 mg/L</div>
+          </div>
+        </div>
+
+        <div id="pocket-contacts-list" style="max-height:88px;overflow-y:auto;"></div>
+      </div>
+
+      <!-- 2. Time-Course PK/PD & Hepatic GSH Chart -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">📈 24h Multi-Compartment PK/PD &amp; GSH Dynamics</div>
+          <span class="badge-pill badge-argon">RK45 ODE Solver</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="pkpd-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 3. Deterministic 5-Check Pass/Fail Verification Loop -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">🛡️ Closed-Loop Verification Engine</div>
+          <span id="verify-overall-badge" class="badge-pill badge-verified">VERIFIED 5/5 PASS</span>
+        </div>
+        <div id="verification-list" class="verification-list"></div>
+      </div>
+
+      <!-- 4. Gemini 4 Argon 4-Step Cascade & Human-in-the-Loop Clinical Safety Gate -->
+      <div class="hud-card">
+        <div class="hud-card-header">
+          <div class="hud-card-title">🧠 Gemini 4 Argon Mechanistic Synthesis</div>
+          <span class="badge-pill badge-argon">4-Step Cascade</span>
+        </div>
+        <p id="argon-exec-summary" style="font-size:11.5px;color:#e2e8f0;"></p>
+
+        <div class="cascade-steps">
+          <div class="cascade-step">
+            <div class="cascade-step-hdr">Step 1 · Toxicokinetic Delivery &amp; Partitioning</div>
+            <div id="cascade-s1" class="cascade-step-body"></div>
+          </div>
+          <div class="cascade-step">
+            <div class="cascade-step-hdr">Step 2 · Target Reaction &amp; 3D Pocket Thermodynamics</div>
+            <div id="cascade-s2" class="cascade-step-body"></div>
+          </div>
+          <div class="cascade-step">
+            <div class="cascade-step-hdr">Step 3 · Cellular Dysfunction &amp; Organelle Stress</div>
+            <div id="cascade-s3" class="cascade-step-body"></div>
+          </div>
+          <div class="cascade-step">
+            <div class="cascade-step-hdr">Step 4 · Disrepair, Fibrosis &amp; Clinical Biomarkers</div>
+            <div id="cascade-s4" class="cascade-step-body"></div>
+          </div>
+        </div>
+
+        <!-- Human-in-the-Loop Clinical Verification Gate -->
+        <div class="clinical-gate-box">
+          <div style="font-size:11.5px;font-weight:700;color:#fbbf24;margin-bottom:4px;">
+            ⚕️ Human-in-the-Loop Clinical &amp; Research Safety Gate
+          </div>
+          <div id="gate-antidote-text" style="font-size:11px;color:#fef3c7;margin-bottom:7px;"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <button id="btn-approve-protocol" class="btn btn-primary" style="padding:5px 10px;font-size:11px;">
+              ✔ Verify &amp; Sign Off Protocol (PharmD)
+            </button>
+            <span id="gate-approval-status" style="font-size:10.5px;color:var(--text-muted);">
+              Awaiting researcher sign-off
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== MODAL 1: PHASE 2 ALPHAFOLD 3 NOVEL DRUG APPROXIMATOR ==================== -->
+  <div id="af3-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="hud-card-header">
+        <div class="hud-card-title">🧬 Phase 2: AlphaFold 3 Structure-to-PK/PD Novel Drug Approximator</div>
+        <button id="btn-close-af3" class="btn-hud-mini">✕ Close</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+        For unprofiled or novel chemical entities, PharmacoTwin 3D generates an official <strong>AlphaFold 3</strong> receptor-ligand co-folding job specification from the molecule's SMILES, approximates 3D pocket atomic contact distances ($r_{ij}$ in $\text{\AA}$), derives Gibbs free energy ($\Delta G \rightarrow K_d \rightarrow EC_{50,\text{tox}}$), and predicts 2-compartment PK parameters ($V_c, V_p, CL, Q, f_u$).
+      </p>
+
+      <div style="font-size:11px;font-weight:600;color:var(--accent-cyan);margin-bottom:5px;">
+        Quick-Load Unprofiled Toxicology Lecture Compounds (or type any custom SMILES):
+      </div>
+      <div id="af3-sample-pills" class="sample-pills-row"></div>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Molecule / Candidate Name</label>
+          <input id="af3-mol-name" type="text" value="Cisplatin (Novel Pt Crosslinker)" />
+        </div>
+        <div class="form-group">
+          <label>Administration Route &amp; Dose (mg)</label>
+          <div style="display:flex;gap:6px;">
+            <select id="af3-route">
+              <option value="iv_bolus" selected>IV Bolus</option>
+              <option value="oral">Oral (PO)</option>
+              <option value="iv_infusion">IV Infusion</option>
+            </select>
+            <input id="af3-dose" type="number" value="120" min="1" max="10000" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Canonical SMILES String (Ligand Input for AlphaFold 3 Co-Folding)</label>
+        <input id="af3-smiles" type="text" value="N.N.Cl[Pt]Cl" style="font-family:var(--font-mono);" />
+      </div>
+
+      <button id="btn-run-af3-submit" class="btn btn-af3" style="width:100%;margin-top:6px;margin-bottom:10px;">
+        Run AlphaFold 3 Profile Approximation &amp; 3D Simulation
+      </button>
+
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Generated AlphaFold 3 Server / Vertex AI Co-Folding JSON Specification</label>
+        <pre id="af3-json-preview" style="background:#050811;border:1px solid var(--border-subtle);border-radius:8px;padding:10px;font-family:var(--font-mono);font-size:11px;color:#6ee7b7;max-height:180px;overflow-y:auto;">{
+  "dialect": "alphafold3",
+  "version": 1,
+  "sequences": [
+    { "proteinChain": { "id": "A", "description": "Off-Target Toxicity Receptor" } },
+    { "ligand": { "id": "L", "smiles": "N.N.Cl[Pt]Cl" } }
+  ]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: 7-WEEK TOXICOLOGY LECTURE CURRICULUM ==================== -->
+  <div id="curriculum-modal" class="modal-backdrop">
+    <div class="modal-window">
+      <div class="hud-card-header">
+        <div class="hud-card-title">📚 Integrated Pharmacy Toxicology Curriculum (7 Lecture Modules)</div>
+        <button id="btn-close-curriculum" class="btn-hud-mini">✕ Close</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+        Extracted directly from the 7 Toxicology Lecture PDFs and loaded into <code>gemini-4-argon</code>'s 1M-token context window for mechanistic cross-referencing:
+      </p>
+      <pre id="curriculum-pre" style="white-space:pre-wrap;background:#050811;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;font-family:var(--font-mono);font-size:11.5px;color:#e2e8f0;line-height:1.55;max-height:420px;overflow-y:auto;"></pre>
+    </div>
+  </div>
+
+  <script src="/static/js/body3d.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
