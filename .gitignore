@@ -21,6 +21,11 @@ service-account*.json
 [External]*.pdf
 룰체크_현장.md
 ANTIGRAVITY_CONTEXT.md
+sample_UI.html
+
+# Personal photos (user portrait + derived face textures; generated at runtime by /api/upload-photo)
+내사진.jpg
+static/assets/user_*.jpg
 
 # OS / IDE files
 .DS_Store
