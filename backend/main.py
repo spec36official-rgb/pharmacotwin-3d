@@ -25,8 +25,11 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 from pydantic import BaseModel, Field
 
 from backend.argon_agent import (
+    DRUG_KO_TRANSLATIONS,
     LECTURE_NOVEL_TEMPLATES,
+    PGX_GENOTYPE_LIBRARY,
     TOXICOLOGY_CURRICULUM_CONTEXT,
+    TOXICOLOGY_CURRICULUM_CONTEXT_KO,
     analyze_simulation_with_argon,
     approximate_novel_drug_af3,
 )
@@ -111,7 +114,7 @@ def healthz():
 
 @app.get("/api/drugs")
 def list_drugs():
-    """Return all 6 preset drugs, Phase 2 AlphaFold 3 novel drug templates, and lecture curriculum."""
+    """Return all 6 preset drugs, Phase 2 AlphaFold 3 novel drug templates, PGx genotypes, and lecture curriculum."""
     novel_samples = [
         {
             "id": k,
@@ -121,8 +124,10 @@ def list_drugs():
             "mw_g_mol": v["mw_g_mol"],
             "logp": v["logp"],
             "target_protein": v["target_protein"],
+            "uniprot_id": v.get("uniprot_id", "P05181"),
             "primary_organ": v["primary_organ"],
             "mechanism": v["mechanism"],
+            "mechanism_ko": v.get("mechanism_ko", v["mechanism"]),
         }
         for k, v in LECTURE_NOVEL_TEMPLATES.items()
     ]
@@ -130,6 +135,9 @@ def list_drugs():
         "preset_drugs": get_all_drugs_summary(),
         "novel_drug_samples": novel_samples,
         "curriculum_context": TOXICOLOGY_CURRICULUM_CONTEXT,
+        "curriculum_context_ko": TOXICOLOGY_CURRICULUM_CONTEXT_KO,
+        "pgx_genotype_library": PGX_GENOTYPE_LIBRARY,
+        "drug_ko_translations": DRUG_KO_TRANSLATIONS,
     }
 
 
@@ -169,6 +177,7 @@ def run_simulation(req: SimulationRequest):
         regimen=regimen,
         thinking_level=req.thinking_level,
     )
+    ko_bundle = DRUG_KO_TRANSLATIONS.get(drug["id"], {})
 
     return {
         "simulation_id": f"sim-{uuid.uuid4().hex[:8]}",
@@ -183,7 +192,10 @@ def run_simulation(req: SimulationRequest):
             "recommended_dose_mg": drug["recommended_dose_mg"],
             "toxic_demo_dose_mg": drug["toxic_demo_dose_mg"],
             "clinical_pearls": drug["clinical_pearls"],
+            "clinical_pearls_ko": ko_bundle.get("clinical_pearls_ko", drug["clinical_pearls"]),
             "antidote": drug["antidote"],
+            "antidote_ko": ko_bundle.get("antidote_ko", ""),
+            "organs_ko": ko_bundle.get("organs_ko", {}),
         },
         "simulation": sim_result,
         "argon_analysis": argon_analysis,
@@ -216,6 +228,7 @@ def run_af3_approximation(req: AF3ApproximationRequest):
     return {
         "simulation_id": f"af3-{uuid.uuid4().hex[:8]}",
         "af3_job_spec": bundle["af3_job_spec"],
+        "af_ebi_live": bundle.get("af_ebi_live", {}),
         "approximated_drug_profile": bundle["approximated_drug_profile"],
         "simulation": bundle["simulation"],
         "argon_analysis": bundle["argon_analysis"],

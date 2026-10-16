@@ -25,19 +25,23 @@
           <span class="badge-pill badge-argon">gemini-4-argon (1M Context)</span>
           <span class="badge-pill badge-af3">AlphaFold 3 Co-Folding</span>
         </h1>
-        <div class="brand-subtitle">
+        <div class="brand-subtitle" data-en="Multi-Scale 3D Human Pharmacokinetic/Pharmacodynamic (PK/PD) &amp; Structural Off-Target Toxicity Simulator" data-ko="Gemini 4 Argon &amp; AlphaFold 3 기반 다중 스케일 3D 체내 약물동태(PK/PD) 및 구조적 장기 독성 시뮬레이터">
           Multi-Scale 3D Human Pharmacokinetic/Pharmacodynamic (PK/PD) &amp; Structural Off-Target Toxicity Simulator
         </div>
       </div>
     </div>
     <div class="top-actions">
-      <button id="btn-open-af3" class="btn btn-af3">
+      <!-- Bilingual Toggle: Default EN, 1-Click Korean Translation for Easy Feature Inspection -->
+      <button id="btn-lang-toggle" class="btn btn-secondary" style="border-color:rgba(56,189,248,0.55);background:rgba(56,189,248,0.12);color:#e0f2fe;" title="Toggle English / Korean Translation">
+        🌐 EN | 🇰🇷 한국어 번역 보기
+      </button>
+      <button id="btn-open-af3" class="btn btn-af3" data-en="🧬 Phase 2: AlphaFold 3 Novel Drug Approximator" data-ko="🧬 Phase 2: AlphaFold 3 신약 프로파일 근사기">
         🧬 Phase 2: AlphaFold 3 Novel Drug Approximator
       </button>
-      <button id="btn-open-curriculum" class="btn btn-secondary">
-        📚 Toxicology Curriculum Reference (7 Weeks)
+      <button id="btn-open-curriculum" class="btn btn-secondary" data-en="📚 Toxicology Curriculum (7 Weeks)" data-ko="📚 독성학 7주 강의자료 요약">
+        📚 Toxicology Curriculum (7 Weeks)
       </button>
-      <a href="/architecture" target="_blank" class="btn btn-secondary" style="text-decoration:none;">
+      <a href="/architecture" target="_blank" class="btn btn-secondary" style="text-decoration:none;" data-en="📐 System Architecture" data-ko="📐 시스템 아키텍처">
         📐 System Architecture
       </a>
     </div>
@@ -50,7 +54,7 @@
       <!-- 1. Patient Digital Twin & Photo-Mapped 3D Avatar -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">👤 Digital Twin Patient Profile</div>
+          <div class="hud-card-title" data-en="👤 Digital Twin Patient Profile" data-ko="👤 디지털 트윈 환자 프로필 (신체 정보)">👤 Digital Twin Patient Profile</div>
           <span id="crcl-badge" class="badge-pill badge-verified">CrCl: 115.3 mL/min</span>
         </div>
 
@@ -59,10 +63,10 @@
             <img id="user-avatar-img" src="/static/assets/user_avatar.jpg" alt="User 3D Twin Face" />
           </div>
           <div class="avatar-meta">
-            <h3>Pharmacy Researcher Twin</h3>
-            <p>Photo UV-mapped onto 3D Cranial Mesh</p>
+            <h3 data-en="Pharmacy Researcher Twin" data-ko="약학 연구자 3D 디지털 트윈">Pharmacy Researcher Twin</h3>
+            <p data-en="Photo UV-mapped onto 3D Cranial Mesh" data-ko="사용자 얼굴 사진이 3D 두부 메쉬에 UV 매핑됨">Photo UV-mapped onto 3D Cranial Mesh</p>
             <label class="btn-upload-photo">
-              📷 Upload / Update Face Photo
+              <span data-en="📷 Upload / Update Face Photo" data-ko="📷 본인 얼굴 사진 업로드/변경">📷 Upload / Update Face Photo</span>
               <input id="photo-upload-input" type="file" accept="image/*" style="display:none;" />
             </label>
           </div>
@@ -70,35 +74,35 @@
 
         <div class="form-grid-2">
           <div class="form-group">
-            <label>Age (yrs)</label>
+            <label data-en="Age (yrs)" data-ko="나이 (세)">Age (yrs)</label>
             <input id="pat-age" type="number" value="24" min="18" max="100" />
           </div>
           <div class="form-group">
-            <label>Biological Sex</label>
+            <label data-en="Biological Sex" data-ko="생물학적 성별">Biological Sex</label>
             <select id="pat-sex">
-              <option value="M" selected>Male (M)</option>
-              <option value="F">Female (F ×0.85 CrCl)</option>
+              <option value="M" selected data-en="Male (M)" data-ko="남성 (M)">Male (M)</option>
+              <option value="F" data-en="Female (F ×0.85 CrCl)" data-ko="여성 (F ×0.85 CrCl)">Female (F ×0.85 CrCl)</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Weight (kg)</label>
+            <label data-en="Weight (kg)" data-ko="체중 (kg)">Weight (kg)</label>
             <input id="pat-weight" type="number" value="68" min="35" max="180" step="1" />
           </div>
           <div class="form-group">
-            <label>Height (cm)</label>
+            <label data-en="Height (cm)" data-ko="신장 (cm)">Height (cm)</label>
             <input id="pat-height" type="number" value="175" min="130" max="210" step="1" />
           </div>
           <div class="form-group">
-            <label>Serum Creatinine (mg/dL)</label>
+            <label data-en="Serum Creatinine (mg/dL)" data-ko="혈청 크레아티닌 SCr (mg/dL)">Serum Creatinine (mg/dL)</label>
             <input id="pat-scr" type="number" value="0.95" min="0.3" max="8.0" step="0.05" />
           </div>
           <div class="form-group">
-            <label>Hepatic Function</label>
+            <label data-en="Hepatic Function" data-ko="간 기능 상태 (Child-Pugh)">Hepatic Function</label>
             <select id="pat-hepatic">
-              <option value="normal" selected>Normal (Child-Pugh A)</option>
-              <option value="mild_impairment">Mild Impairment (×0.75)</option>
-              <option value="moderate_impairment">Moderate Cirrhosis (×0.50)</option>
-              <option value="severe_impairment">Severe Failure (×0.28)</option>
+              <option value="normal" selected data-en="Normal (Child-Pugh A)" data-ko="정상 간기능 (Child-Pugh A)">Normal (Child-Pugh A)</option>
+              <option value="mild_impairment" data-en="Mild Impairment (×0.75)" data-ko="경증 간장애 (대사 ×0.75)">Mild Impairment (×0.75)</option>
+              <option value="moderate_impairment" data-en="Moderate Cirrhosis (×0.50)" data-ko="중등도 간경변 (대사 ×0.50)">Moderate Cirrhosis (×0.50)</option>
+              <option value="severe_impairment" data-en="Severe Failure (×0.28)" data-ko="중증 간부전 (대사 ×0.28)">Severe Failure (×0.28)</option>
             </select>
           </div>
         </div>
@@ -106,15 +110,15 @@
         <!-- Computed PK Parameters Summary Strip -->
         <div class="thermo-metrics-grid" style="margin-bottom:0;">
           <div class="thermo-box">
-            <div class="lbl">Systemic CL</div>
+            <div class="lbl" data-en="Systemic CL" data-ko="총 청소율 (CL)">Systemic CL</div>
             <div id="pk-cl-readout" class="num">18.2 L/h</div>
           </div>
           <div class="thermo-box">
-            <div class="lbl">Vd (Vc + Vp)</div>
+            <div class="lbl" data-en="Vd (Vc + Vp)" data-ko="분포용적 (Vd)">Vd (Vc + Vp)</div>
             <div id="pk-vd-readout" class="num">65.0 L</div>
           </div>
           <div class="thermo-box">
-            <div class="lbl">Effective t½</div>
+            <div class="lbl" data-en="Effective t½" data-ko="유효 반감기 (t½)">Effective t½</div>
             <div id="pk-thalf-readout" class="num">2.48 h</div>
           </div>
         </div>
@@ -123,45 +127,45 @@
       <!-- 2. Drug Regimen & Administration Route -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">💊 Phase 1: Drug &amp; Dosing Regimen</div>
+          <div class="hud-card-title" data-en="💊 Phase 1: Drug &amp; Dosing Regimen" data-ko="💊 Phase 1: 약물 선택 및 투여 용법">💊 Phase 1: Drug &amp; Dosing Regimen</div>
           <span class="badge-pill badge-argon">2-Compartment ODE</span>
         </div>
 
         <div class="form-group">
-          <label>Select Benchmark Drug (6 Lecture Archetypes)</label>
+          <label data-en="Select Benchmark Drug (6 Lecture Archetypes)" data-ko="기준 약물 선택 (독성학 강의 6대 대표 약물)">Select Benchmark Drug (6 Lecture Archetypes)</label>
           <select id="drug-select"></select>
         </div>
 
         <div class="form-group">
-          <label>Administration Route (Triggers 3D Animation)</label>
+          <label data-en="Administration Route (Triggers 3D Animation)" data-ko="투여 경로 선택 (3D 투여 애니메이션 작동)">Administration Route (Triggers 3D Animation)</label>
           <div class="route-tabs">
-            <div class="route-tab active" data-route="oral">👄 Oral (PO)</div>
-            <div class="route-tab" data-route="iv_bolus">💉 IV Bolus</div>
-            <div class="route-tab" data-route="iv_infusion">💧 IV Infusion</div>
+            <div class="route-tab active" data-route="oral" data-en="👄 Oral (PO)" data-ko="👄 경구 투여 (PO)">👄 Oral (PO)</div>
+            <div class="route-tab" data-route="iv_bolus" data-en="💉 IV Bolus" data-ko="💉 정맥 급속주사 (IV)">💉 IV Bolus</div>
+            <div class="route-tab" data-route="iv_infusion" data-en="💧 IV Infusion" data-ko="💧 정맥 점적수액">💧 IV Infusion</div>
           </div>
         </div>
 
         <div class="form-grid-2">
           <div class="form-group">
-            <label>Dose per Admin (mg)</label>
+            <label data-en="Dose per Admin (mg)" data-ko="1회 투여 용량 (mg)">Dose per Admin (mg)</label>
             <input id="dose-input" type="number" value="1000" min="1" max="30000" step="50" />
           </div>
           <div class="form-group">
-            <label>Interval τ (hours)</label>
+            <label data-en="Interval τ (hours)" data-ko="투여 간격 τ (시간)">Interval τ (hours)</label>
             <input id="interval-input" type="number" value="6" min="2" max="48" step="1" />
           </div>
         </div>
 
         <div class="form-group">
-          <label>Number of Doses (over 24h Window)</label>
+          <label data-en="Number of Doses (over 24h Window)" data-ko="총 투여 횟수 (24시간 내)">Number of Doses (over 24h Window)</label>
           <input id="numdoses-input" type="number" value="3" min="1" max="8" step="1" />
         </div>
 
         <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px;">
-          <button id="btn-simulate" class="btn btn-primary" style="width:100%;">
+          <button id="btn-simulate" class="btn btn-primary" style="width:100%;" data-en="▶ Simulate 3D PK/PD &amp; Toxicity" data-ko="▶ 3D 체내 PK/PD 및 독성 시뮬레이션 실행">
             ▶ Simulate 3D PK/PD &amp; Toxicity
           </button>
-          <button id="btn-toxic-demo" class="btn btn-danger-demo" style="width:100%;">
+          <button id="btn-toxic-demo" class="btn btn-danger-demo" style="width:100%;" data-en="⚠️ Simulate Acute Overdose / Toxicity Scenario" data-ko="⚠️ 급성 과량투여 / 중증 독성 시나리오 즉시 시연">
             ⚠️ Simulate Acute Overdose / Toxicity Scenario
           </button>
         </div>
@@ -170,40 +174,48 @@
       <!-- 3. Phase 3: Pharmacogenomics (PGx) / AlphaGenome Personalization -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">🧬 Phase 3: PGx &amp; AlphaGenome Variants</div>
-          <span class="badge-pill badge-af3">Personalized Susceptibility</span>
+          <div class="hud-card-title" data-en="🧬 Phase 3: PGx &amp; AlphaGenome Variants" data-ko="🧬 Phase 3: 약물유전체(PGx) &amp; AlphaGenome 변이">🧬 Phase 3: PGx &amp; AlphaGenome Variants</div>
+          <span class="badge-pill badge-af3" data-en="DNA Variant → PK/PD" data-ko="DNA 서열 변이 → 개인화">DNA Variant → PK/PD</span>
         </div>
 
         <div class="form-grid-2">
           <div class="form-group">
-            <label>CYP2E1 (NAPQI / Liver)</label>
+            <label data-en="CYP2E1 (NAPQI / Liver)" data-ko="CYP2E1 (NAPQI 생성 / 간독성)">CYP2E1 (NAPQI / Liver)</label>
             <select id="pgx-cyp2e1">
-              <option value="normal" selected>Wildtype (Normal)</option>
-              <option value="induced">Induced (Ethanol / INH ×2.3)</option>
+              <option value="normal" selected data-en="Wildtype (*1A/*1A)" data-ko="야생형 (*1A/*1A 정상)">Wildtype (*1A/*1A)</option>
+              <option value="induced" data-en="Induced (*1D / EtOH ×2.3)" data-ko="유도형 (*1D / 음주·INH ×2.3배)">Induced (*1D / EtOH ×2.3)</option>
             </select>
           </div>
           <div class="form-group">
-            <label>CYP3A4 (First-Pass / Clearance)</label>
+            <label data-en="CYP3A4 (First-Pass / CL)" data-ko="CYP3A4 (초회통과 / 청소율)">CYP3A4 (First-Pass / CL)</label>
             <select id="pgx-cyp3a4">
-              <option value="normal" selected>Normal Metabolizer</option>
-              <option value="inhibited">Inhibited (Ketoconazole ×0.22)</option>
-              <option value="poor">Poor Metabolizer (*22/*22)</option>
+              <option value="normal" selected data-en="Normal (*1/*1)" data-ko="정상 대사형 (*1/*1)">Normal (*1/*1)</option>
+              <option value="inhibited" data-en="Inhibited (Azole DDI ×0.22)" data-ko="억제됨 (항진균제 병용 ×0.22)">Inhibited (Azole DDI ×0.22)</option>
+              <option value="poor" data-en="Poor (*22/*22 rs35599367)" data-ko="저대사자 (*22/*22 스플라이싱 변이)">Poor (*22/*22 rs35599367)</option>
             </select>
           </div>
           <div class="form-group">
-            <label>KCNH2 / hERG (Cardiac QT)</label>
+            <label data-en="KCNH2 / hERG (Cardiac QT)" data-ko="KCNH2 / hERG (심장 QT연장)">KCNH2 / hERG (Cardiac QT)</label>
             <select id="pgx-herg">
-              <option value="wildtype" selected>Wildtype Kv11.1</option>
-              <option value="lqt2_carrier">LQT2 Variant (Sensitized hERG)</option>
+              <option value="wildtype" selected data-en="Wildtype Kv11.1" data-ko="야생형 Kv11.1 (정상)">Wildtype Kv11.1</option>
+              <option value="lqt2_carrier" data-en="LQT2 Carrier (p.R534C)" data-ko="LQT2 변이 보인자 (민감도 3.1배)">LQT2 Carrier (p.R534C)</option>
             </select>
           </div>
           <div class="form-group">
-            <label>G6PD Status (RBC NADPH)</label>
+            <label data-en="G6PD Status (RBC NADPH)" data-ko="G6PD 효소 (적혈구 용혈)">G6PD Status (RBC NADPH)</label>
             <select id="pgx-g6pd">
-              <option value="normal" selected>G6PD Normal</option>
-              <option value="deficient">G6PD Deficient (Hemolysis Risk)</option>
+              <option value="normal" selected data-en="G6PD B (Wildtype)" data-ko="G6PD 정상 (야생형)">G6PD B (Wildtype)</option>
+              <option value="deficient" data-en="Deficient (rs1050828 A-)" data-ko="G6PD 결핍증 (용혈 위험 3.8배)">Deficient (rs1050828 A-)</option>
             </select>
           </div>
+        </div>
+
+        <!-- DNA Sequence & AlphaGenome Variant Effect Inspector -->
+        <div id="pgx-dna-inspector" style="background:rgba(8,13,26,0.82);border:1px solid rgba(168,85,247,0.35);border-radius:8px;padding:8px 10px;margin-top:4px;font-size:10.5px;">
+          <div style="font-weight:700;color:#d8b4fe;margin-bottom:4px;" data-en="🔬 Active Genomic Variant &amp; AlphaGenome Sequence Profile" data-ko="🔬 선택된 유전자형(rsID) DNA 서열 및 AlphaGenome 발현 예측">
+            🔬 Active Genomic Variant &amp; AlphaGenome Sequence Profile
+          </div>
+          <div id="pgx-dna-content" style="font-family:var(--font-mono);color:#cbd5e1;line-height:1.45;"></div>
         </div>
       </div>
     </section>
@@ -214,19 +226,19 @@
       <div class="hud-card viewport-3d-card">
         <div class="viewport-overlay-top">
           <div class="organ-legend-box">
-            <div style="font-weight:700;color:#fff;">3D Anatomical Digital Twin (Click any organ to inspect)</div>
+            <div style="font-weight:700;color:#fff;" data-en="3D Anatomical Digital Twin (Click any organ to inspect)" data-ko="3D 인체 디지털 트윈 (장기를 클릭하면 독성 기전을 분석합니다)">3D Anatomical Digital Twin (Click any organ to inspect)</div>
             <div class="legend-scale">
-              <span><i class="legend-dot" style="background:#10b981;"></i> Safe (&lt;20%)</span>
-              <span><i class="legend-dot" style="background:#f59e0b;"></i> Elevated (35–65%)</span>
-              <span><i class="legend-dot" style="background:#f43f5e;"></i> Critical Toxicity (&gt;65%)</span>
+              <span><i class="legend-dot" style="background:#10b981;"></i> <span data-en="Safe (&lt;20%)" data-ko="안전 (&lt;20%)">Safe (&lt;20%)</span></span>
+              <span><i class="legend-dot" style="background:#f59e0b;"></i> <span data-en="Elevated (35–65%)" data-ko="주의 (35–65%)">Elevated (35–65%)</span></span>
+              <span><i class="legend-dot" style="background:#f43f5e;"></i> <span data-en="Critical (&gt;65%)" data-ko="위험 독성 (&gt;65%)">Critical (&gt;65%)</span></span>
             </div>
           </div>
 
           <div class="viewport-controls-float">
-            <button id="btn-replay-admin" class="btn-hud-mini">💊 Replay Admin Anim</button>
-            <button id="btn-toggle-shell" class="btn-hud-mini">X-Ray Organs Only</button>
-            <button id="btn-toggle-rotate" class="btn-hud-mini">360° Auto-Orbit</button>
-            <button id="btn-reset-cam" class="btn-hud-mini">Reset View</button>
+            <button id="btn-replay-admin" class="btn-hud-mini" data-en="💊 Replay Admin Anim" data-ko="💊 투여 애니메이션 재생">💊 Replay Admin Anim</button>
+            <button id="btn-toggle-shell" class="btn-hud-mini" data-en="X-Ray Organs Only" data-ko="X-Ray 장기 투시 모드">X-Ray Organs Only</button>
+            <button id="btn-toggle-rotate" class="btn-hud-mini" data-en="360° Auto-Orbit" data-ko="360° 자동 회전">360° Auto-Orbit</button>
+            <button id="btn-reset-cam" class="btn-hud-mini" data-en="Reset View" data-ko="시점 초기화">Reset View</button>
           </div>
         </div>
 
@@ -236,7 +248,7 @@
         <!-- 24-Hour Time Scrubber & Instantaneous Compartmental Readout -->
         <div class="timeline-bar">
           <div class="timeline-controls-row">
-            <button id="btn-play-timeline" class="btn btn-secondary" style="padding:5px 11px;">
+            <button id="btn-play-timeline" class="btn btn-secondary" style="padding:5px 11px;" data-en="▶ Play 24h" data-ko="▶ 24시간 재생">
               ▶ Play 24h
             </button>
             <span id="time-readout" class="time-readout">t = 1.5 h</span>
@@ -244,19 +256,19 @@
           </div>
           <div class="instant-metrics-strip">
             <div class="instant-metric-item">
-              <span style="color:var(--text-muted);">Plasma Cp(t)</span>
+              <span style="color:var(--text-muted);" data-en="Plasma Cp(t)" data-ko="혈장 농도 Cp(t)">Plasma Cp(t)</span>
               <span id="inst-cp" class="val">14.2 mg/L</span>
             </div>
             <div class="instant-metric-item">
-              <span style="color:var(--text-muted);">Tissue Ct(t)</span>
+              <span style="color:var(--text-muted);" data-en="Tissue Ct(t)" data-ko="말초조직 Ct(t)">Tissue Ct(t)</span>
               <span id="inst-ct" class="val">8.4 mg/L</span>
             </div>
             <div class="instant-metric-item">
-              <span style="color:var(--text-muted);">PD Target Efficacy</span>
+              <span style="color:var(--text-muted);" data-en="PD Target Efficacy" data-ko="타겟 약효 (PD)">PD Target Efficacy</span>
               <span id="inst-eff" class="val" style="color:#38bdf8;">82.5%</span>
             </div>
             <div class="instant-metric-item">
-              <span style="color:var(--text-muted);">Hepatic GSH</span>
+              <span style="color:var(--text-muted);" data-en="Hepatic GSH" data-ko="간 글루타치온(GSH)">Hepatic GSH</span>
               <span id="inst-gsh" class="val" style="color:#10b981;">91.0%</span>
             </div>
           </div>
@@ -266,8 +278,8 @@
       <!-- 2. 8-Organ Partitioning & Peak Toxicity Heatmap Selector -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">🫀 8-Organ Partitioning (Kp) &amp; Peak Toxicity Index</div>
-          <span style="font-size:11px;color:var(--text-muted);">Click an organ card or 3D mesh to inspect mechanism</span>
+          <div class="hud-card-title" data-en="🫀 8-Organ Partitioning (Kp) &amp; Peak Toxicity Index" data-ko="🫀 8대 장기 조직 분배계수(Kp) 및 최대 독성 위험도">🫀 8-Organ Partitioning (Kp) &amp; Peak Toxicity Index</div>
+          <span style="font-size:11px;color:var(--text-muted);" data-en="Click an organ card or 3D mesh to inspect mechanism" data-ko="장기 카드 또는 3D 장기를 클릭해 상세 독성 기전을 확인하세요">Click an organ card or 3D mesh to inspect mechanism</span>
         </div>
         <div id="organ-grid-8" class="organ-grid-8"></div>
       </div>
@@ -276,7 +288,7 @@
       <div class="hud-card">
         <div class="hud-card-header">
           <div id="insp-organ-name" class="hud-card-title">Liver (Zone 3 Centrilobular) — 간</div>
-          <span class="badge-pill badge-argon">Lecture Curriculum Grounded</span>
+          <span class="badge-pill badge-argon" data-en="Lecture Curriculum Grounded" data-ko="독성학 강의자료 기반">Lecture Curriculum Grounded</span>
         </div>
         <div id="insp-organ-metrics" style="font-family:var(--font-mono);font-size:11.5px;color:#38bdf8;margin-bottom:6px;"></div>
         <p id="insp-organ-mech" style="font-size:12px;color:#e2e8f0;margin-bottom:6px;"></p>
@@ -290,7 +302,7 @@
       <!-- 1. 3Dmol.js Receptor-Ligand Co-Folded Pocket & Thermodynamic Affinity -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">🔬 3D Receptor-Ligand Co-Folded Pocket</div>
+          <div class="hud-card-title" data-en="🔬 3D Receptor-Ligand Co-Folded Pocket" data-ko="🔬 3D 독성 타겟 수용체-약물 결합 포켓 구조">🔬 3D Receptor-Ligand Co-Folded Pocket</div>
           <span id="af3-conf-badge" class="badge-pill badge-af3">pLDDT 94.8 | ipTM 0.92</span>
         </div>
         <div id="receptor-title" style="font-size:11.5px;font-weight:600;color:#cbd5e1;margin-bottom:6px;">
@@ -304,15 +316,15 @@
         <!-- Gibbs Free Energy -> Kd -> EC50_tox Readout -->
         <div class="thermo-metrics-grid">
           <div class="thermo-box">
-            <div class="lbl">Binding ΔG</div>
+            <div class="lbl" data-en="Binding ΔG" data-ko="결합 자유에너지 ΔG">Binding ΔG</div>
             <div id="thermo-dg" class="num">-7.84 kcal/mol</div>
           </div>
           <div class="thermo-box">
-            <div class="lbl">Dissociation Kd</div>
+            <div class="lbl" data-en="Dissociation Kd" data-ko="해리상수 Kd">Dissociation Kd</div>
             <div id="thermo-kd" class="num">2.98 μM</div>
           </div>
           <div class="thermo-box">
-            <div class="lbl">Calc EC50,tox</div>
+            <div class="lbl" data-en="Calc EC50,tox" data-ko="독성 임계농도 EC50">Calc EC50,tox</div>
             <div id="thermo-ec50" class="num">42.1 mg/L</div>
           </div>
         </div>
@@ -323,7 +335,7 @@
       <!-- 2. Time-Course PK/PD & Hepatic GSH Chart -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">📈 24h Multi-Compartment PK/PD &amp; GSH Dynamics</div>
+          <div class="hud-card-title" data-en="📈 24h Multi-Compartment PK/PD &amp; GSH Dynamics" data-ko="📈 24시간 체내 혈장·조직 농도 및 간 GSH 동태 곡선">📈 24h Multi-Compartment PK/PD &amp; GSH Dynamics</div>
           <span class="badge-pill badge-argon">RK45 ODE Solver</span>
         </div>
         <div class="chart-container">
@@ -334,7 +346,7 @@
       <!-- 3. Deterministic 5-Check Pass/Fail Verification Loop -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">🛡️ Closed-Loop Verification Engine</div>
+          <div class="hud-card-title" data-en="🛡️ Closed-Loop Verification Engine" data-ko="🛡️ 5단계 수리·약리 자동 검증 루프 (Verification Loop)">🛡️ Closed-Loop Verification Engine</div>
           <span id="verify-overall-badge" class="badge-pill badge-verified">VERIFIED 5/5 PASS</span>
         </div>
         <div id="verification-list" class="verification-list"></div>
@@ -343,41 +355,41 @@
       <!-- 4. Gemini 4 Argon 4-Step Cascade & Human-in-the-Loop Clinical Safety Gate -->
       <div class="hud-card">
         <div class="hud-card-header">
-          <div class="hud-card-title">🧠 Gemini 4 Argon Mechanistic Synthesis</div>
-          <span class="badge-pill badge-argon">4-Step Cascade</span>
+          <div class="hud-card-title" data-en="🧠 Gemini 4 Argon Mechanistic Synthesis" data-ko="🧠 Gemini 4 Argon 4단계 독성 기전 추론 결과">🧠 Gemini 4 Argon Mechanistic Synthesis</div>
+          <span class="badge-pill badge-argon" data-en="4-Step Cascade" data-ko="독성학 4단계 기전">4-Step Cascade</span>
         </div>
         <p id="argon-exec-summary" style="font-size:11.5px;color:#e2e8f0;"></p>
 
         <div class="cascade-steps">
           <div class="cascade-step">
-            <div class="cascade-step-hdr">Step 1 · Toxicokinetic Delivery &amp; Partitioning</div>
+            <div class="cascade-step-hdr" data-en="Step 1 · Toxicokinetic Delivery &amp; Partitioning" data-ko="1단계 (전달 · Delivery) · 독성동태학 및 장기 분배">Step 1 · Toxicokinetic Delivery &amp; Partitioning</div>
             <div id="cascade-s1" class="cascade-step-body"></div>
           </div>
           <div class="cascade-step">
-            <div class="cascade-step-hdr">Step 2 · Target Reaction &amp; 3D Pocket Thermodynamics</div>
+            <div class="cascade-step-hdr" data-en="Step 2 · Target Reaction &amp; 3D Pocket Thermodynamics" data-ko="2단계 (독성반응 · Reaction) · 타겟 결합 및 활성 대사체 반응">Step 2 · Target Reaction &amp; 3D Pocket Thermodynamics</div>
             <div id="cascade-s2" class="cascade-step-body"></div>
           </div>
           <div class="cascade-step">
-            <div class="cascade-step-hdr">Step 3 · Cellular Dysfunction &amp; Organelle Stress</div>
+            <div class="cascade-step-hdr" data-en="Step 3 · Cellular Dysfunction &amp; Organelle Stress" data-ko="3단계 (세포기능장애 · Dysfunction) · 미토콘드리아/칼슘 손상">Step 3 · Cellular Dysfunction &amp; Organelle Stress</div>
             <div id="cascade-s3" class="cascade-step-body"></div>
           </div>
           <div class="cascade-step">
-            <div class="cascade-step-hdr">Step 4 · Disrepair, Fibrosis &amp; Clinical Biomarkers</div>
+            <div class="cascade-step-hdr" data-en="Step 4 · Disrepair, Fibrosis &amp; Clinical Biomarkers" data-ko="4단계 (회복실패 · Disrepair) · 섬유화 및 임상 바이오마커">Step 4 · Disrepair, Fibrosis &amp; Clinical Biomarkers</div>
             <div id="cascade-s4" class="cascade-step-body"></div>
           </div>
         </div>
 
         <!-- Human-in-the-Loop Clinical Verification Gate -->
         <div class="clinical-gate-box">
-          <div style="font-size:11.5px;font-weight:700;color:#fbbf24;margin-bottom:4px;">
+          <div style="font-size:11.5px;font-weight:700;color:#fbbf24;margin-bottom:4px;" data-en="⚕️ Human-in-the-Loop Clinical &amp; Research Safety Gate" data-ko="⚕️ 연구자/약사 안전 승인 게이트 (Human-in-the-Loop) 및 해독제 지침">
             ⚕️ Human-in-the-Loop Clinical &amp; Research Safety Gate
           </div>
           <div id="gate-antidote-text" style="font-size:11px;color:#fef3c7;margin-bottom:7px;"></div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-            <button id="btn-approve-protocol" class="btn btn-primary" style="padding:5px 10px;font-size:11px;">
+            <button id="btn-approve-protocol" class="btn btn-primary" style="padding:5px 10px;font-size:11px;" data-en="✔ Verify &amp; Sign Off Protocol (PharmD)" data-ko="✔ 처방 프로토콜 및 해독제 준비 확인 서명 (약사/연구자)">
               ✔ Verify &amp; Sign Off Protocol (PharmD)
             </button>
-            <span id="gate-approval-status" style="font-size:10.5px;color:var(--text-muted);">
+            <span id="gate-approval-status" style="font-size:10.5px;color:var(--text-muted);" data-en="Awaiting researcher sign-off" data-ko="연구자 승인 대기 중">
               Awaiting researcher sign-off
             </span>
           </div>
@@ -390,25 +402,25 @@
   <div id="af3-modal" class="modal-backdrop">
     <div class="modal-window">
       <div class="hud-card-header">
-        <div class="hud-card-title">🧬 Phase 2: AlphaFold 3 Structure-to-PK/PD Novel Drug Approximator</div>
-        <button id="btn-close-af3" class="btn-hud-mini">✕ Close</button>
+        <div class="hud-card-title" data-en="🧬 Phase 2: AlphaFold 3 Structure-to-PK/PD Novel Drug Approximator" data-ko="🧬 Phase 2: AlphaFold 3 기반 미지/신규 약물 PK/PD 프로파일 근사기">🧬 Phase 2: AlphaFold 3 Structure-to-PK/PD Novel Drug Approximator</div>
+        <button id="btn-close-af3" class="btn-hud-mini" data-en="✕ Close" data-ko="✕ 닫기">✕ Close</button>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
-        For unprofiled or novel chemical entities, PharmacoTwin 3D generates an official <strong>AlphaFold 3</strong> receptor-ligand co-folding job specification from the molecule's SMILES, approximates 3D pocket atomic contact distances ($r_{ij}$ in $\text{\AA}$), derives Gibbs free energy ($\Delta G \rightarrow K_d \rightarrow EC_{50,\text{tox}}$), and predicts 2-compartment PK parameters ($V_c, V_p, CL, Q, f_u$).
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;" data-en="For unprofiled or novel chemical entities, PharmacoTwin 3D queries the live Google DeepMind × EMBL-EBI AlphaFold DB API for the target receptor structure, generates an official AlphaFold 3 Server receptor-ligand co-folding JSON specification from SMILES, approximates 3D pocket atomic contact distances (Å), derives Gibbs free energy (ΔG → Kd → EC50,tox), and predicts 2-compartment PK parameters." data-ko="알려진 PK/PD 프로파일이 없는 신약 후보물질이나 독성물질의 SMILES 화학식을 입력하면, Google DeepMind × EMBL-EBI AlphaFold DB 실시간 API에서 수용체 구조를 조회하고, AlphaFold 3 공식 Co-Folding JSON 작업 명세를 생성한 뒤, 결합 포켓 원자간 거리(Å) 열역학 계산(ΔG → Kd → EC50,tox)을 통해 전신 PK/PD 및 8대 장기 독성을 근사합니다.">
+        For unprofiled or novel chemical entities, PharmacoTwin 3D queries the live Google DeepMind × EMBL-EBI AlphaFold DB API for the target receptor structure, generates an official AlphaFold 3 Server receptor-ligand co-folding JSON specification from SMILES, approximates 3D pocket atomic contact distances (Å), derives Gibbs free energy (ΔG → Kd → EC50,tox), and predicts 2-compartment PK parameters.
       </p>
 
-      <div style="font-size:11px;font-weight:600;color:var(--accent-cyan);margin-bottom:5px;">
+      <div style="font-size:11px;font-weight:600;color:var(--accent-cyan);margin-bottom:5px;" data-en="Quick-Load Unprofiled Toxicology Lecture Compounds (or type any custom SMILES):" data-ko="독성학 강의 등장 물질 빠른 선택 (또는 원하는 SMILES 직접 입력):">
         Quick-Load Unprofiled Toxicology Lecture Compounds (or type any custom SMILES):
       </div>
       <div id="af3-sample-pills" class="sample-pills-row"></div>
 
       <div class="form-grid-2">
         <div class="form-group">
-          <label>Molecule / Candidate Name</label>
+          <label data-en="Molecule / Candidate Name" data-ko="약물 / 후보물질 이름">Molecule / Candidate Name</label>
           <input id="af3-mol-name" type="text" value="Cisplatin (Novel Pt Crosslinker)" />
         </div>
         <div class="form-group">
-          <label>Administration Route &amp; Dose (mg)</label>
+          <label data-en="Administration Route &amp; Dose (mg)" data-ko="투여 경로 및 1회 용량 (mg)">Administration Route &amp; Dose (mg)</label>
           <div style="display:flex;gap:6px;">
             <select id="af3-route">
               <option value="iv_bolus" selected>IV Bolus</option>
@@ -421,17 +433,22 @@
       </div>
 
       <div class="form-group">
-        <label>Canonical SMILES String (Ligand Input for AlphaFold 3 Co-Folding)</label>
+        <label data-en="Canonical SMILES String (Ligand Input for AlphaFold 3 Co-Folding)" data-ko="분자 구조 SMILES 문자열 (AlphaFold 3 리간드 Co-Folding 입력)">Canonical SMILES String (Ligand Input for AlphaFold 3 Co-Folding)</label>
         <input id="af3-smiles" type="text" value="N.N.Cl[Pt]Cl" style="font-family:var(--font-mono);" />
       </div>
 
-      <button id="btn-run-af3-submit" class="btn btn-af3" style="width:100%;margin-top:6px;margin-bottom:10px;">
+      <button id="btn-run-af3-submit" class="btn btn-af3" style="width:100%;margin-top:6px;margin-bottom:10px;" data-en="Run AlphaFold 3 Profile Approximation &amp; 3D Simulation" data-ko="AlphaFold 3 프로파일 근사 및 3D 인체 시뮬레이션 실행">
         Run AlphaFold 3 Profile Approximation &amp; 3D Simulation
       </button>
 
+      <!-- Live AlphaFold DB API Status Box -->
+      <div id="af3-ebi-live-box" style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.35);border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#6ee7b7;font-family:var(--font-mono);">
+        ⚡ Google DeepMind × EMBL-EBI AlphaFold DB Live API Ready (https://alphafold.ebi.ac.uk/api/prediction/{UniProt})
+      </div>
+
       <div class="form-group" style="margin-bottom:0;">
-        <label>Generated AlphaFold 3 Server / Vertex AI Co-Folding JSON Specification</label>
-        <pre id="af3-json-preview" style="background:#050811;border:1px solid var(--border-subtle);border-radius:8px;padding:10px;font-family:var(--font-mono);font-size:11px;color:#6ee7b7;max-height:180px;overflow-y:auto;">{
+        <label data-en="Generated AlphaFold 3 Server / Vertex AI Co-Folding JSON Specification" data-ko="자동 생성된 AlphaFold 3 Server / Vertex AI Co-Folding JSON 명세서">Generated AlphaFold 3 Server / Vertex AI Co-Folding JSON Specification</label>
+        <pre id="af3-json-preview" style="background:#050811;border:1px solid var(--border-subtle);border-radius:8px;padding:10px;font-family:var(--font-mono);font-size:11px;color:#6ee7b7;max-height:170px;overflow-y:auto;">{
   "dialect": "alphafold3",
   "version": 1,
   "sequences": [
@@ -447,10 +464,10 @@
   <div id="curriculum-modal" class="modal-backdrop">
     <div class="modal-window">
       <div class="hud-card-header">
-        <div class="hud-card-title">📚 Integrated Pharmacy Toxicology Curriculum (7 Lecture Modules)</div>
-        <button id="btn-close-curriculum" class="btn-hud-mini">✕ Close</button>
+        <div class="hud-card-title" data-en="📚 Integrated Pharmacy Toxicology Curriculum (7 Lecture Modules)" data-ko="📚 약학대학 독성학 7주 강의자료 핵심 기전 요약">📚 Integrated Pharmacy Toxicology Curriculum (7 Lecture Modules)</div>
+        <button id="btn-close-curriculum" class="btn-hud-mini" data-en="✕ Close" data-ko="✕ 닫기">✕ Close</button>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;" data-en="Extracted directly from the 7 Toxicology Lecture PDFs and loaded into gemini-4-argon's 1M-token context window for mechanistic cross-referencing:" data-ko="제공해주신 7개의 독성학 강의 PDF 파일에서 추출하여 gemini-4-argon의 1M 토큰 컨텍스트 윈도우에 주입된 핵심 독성 기전 요약입니다:">
         Extracted directly from the 7 Toxicology Lecture PDFs and loaded into <code>gemini-4-argon</code>'s 1M-token context window for mechanistic cross-referencing:
       </p>
       <pre id="curriculum-pre" style="white-space:pre-wrap;background:#050811;border:1px solid var(--border-subtle);border-radius:8px;padding:12px;font-family:var(--font-mono);font-size:11.5px;color:#e2e8f0;line-height:1.55;max-height:420px;overflow-y:auto;"></pre>

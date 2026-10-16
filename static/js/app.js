@@ -1,13 +1,19 @@
 /**
  * PharmacoTwin 3D — Main Frontend Controller
  * Orchestrates Three.js 3D Body, 3Dmol.js Receptor Pocket Viewer, Chart.js PK/PD Curves,
- * Phase 2 AlphaFold 3 Novel Drug Approximator, Phase 3 PGx, and Verification Loop.
+ * Phase 2 AlphaFold 3 Novel Drug Approximator (+ Live AlphaFold DB API),
+ * Phase 3 PGx DNA Variant / AlphaGenome Sequence Inspector,
+ * Verification Loop, and 1-Click English/Korean Bilingual Translation Toggle.
  */
 
 const AppState = {
+  lang: "en", // Default is English ("en") for Hackathon submission; toggleable to "ko"
   presetDrugs: [],
   novelSamples: [],
   curriculumText: "",
+  curriculumTextKo: "",
+  pgxLibrary: {},
+  drugKoMap: {},
   currentDrugId: "acetaminophen",
   currentRoute: "oral",
   simResponse: null,
@@ -36,6 +42,50 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadDrugsCatalog();
   await runSimulation(false);
 });
+
+function setLanguage(lang) {
+  AppState.lang = lang === "ko" ? "ko" : "en";
+  const isKo = AppState.lang === "ko";
+
+  // Update toggle button appearance
+  const toggleBtn = document.getElementById("btn-lang-toggle");
+  if (toggleBtn) {
+    if (isKo) {
+      toggleBtn.innerHTML = "🇰🇷 한국어 번역 켜짐 (클릭 시 🇺🇸 EN 전환)";
+      toggleBtn.style.background = "linear-gradient(135deg, rgba(16,185,129,0.28), rgba(56,189,248,0.25))";
+      toggleBtn.style.borderColor = "#34d399";
+      toggleBtn.style.color = "#ecfdf5";
+    } else {
+      toggleBtn.innerHTML = "🌐 EN | 🇰🇷 한국어 번역 보기";
+      toggleBtn.style.background = "rgba(56,189,248,0.12)";
+      toggleBtn.style.borderColor = "rgba(56,189,248,0.55)";
+      toggleBtn.style.color = "#e0f2fe";
+    }
+  }
+
+  // Update all elements with data-en / data-ko attributes
+  document.querySelectorAll("[data-en][data-ko]").forEach((el) => {
+    const targetText = isKo ? el.getAttribute("data-ko") : el.getAttribute("data-en");
+    if (targetText) {
+      el.textContent = targetText;
+    }
+  });
+
+  // Update Curriculum Modal text
+  const preText = document.getElementById("curriculum-pre");
+  if (preText) {
+    preText.textContent = (isKo ? AppState.curriculumTextKo || AppState.curriculumText : AppState.curriculumText).trim();
+  }
+
+  // Re-render dynamic panels in active language
+  if (AppState.simResponse) {
+    renderEightOrganCards(AppState.simResponse.simulation.organs);
+    renderSelectedOrganInspector(AppState.selectedOrgan);
+    renderArgonAnalysis(AppState.simResponse.argon_analysis, AppState.simResponse.drug_detail);
+    renderVerificationLoop(AppState.simResponse.verification_loop);
+    renderPGxDNAInspector();
+  }
+}
 
 function initMol3DViewer() {
   const el = document.getElementById("mol3d-container");
@@ -91,6 +141,9 @@ async function loadDrugsCatalog() {
     AppState.presetDrugs = data.preset_drugs || [];
     AppState.novelSamples = data.novel_drug_samples || [];
     AppState.curriculumText = data.curriculum_context || "";
+    AppState.curriculumTextKo = data.curriculum_context_ko || AppState.curriculumText;
+    AppState.pgxLibrary = data.pgx_genotype_library || {};
+    AppState.drugKoMap = data.drug_ko_translations || {};
 
     const sel = document.getElementById("drug-select");
     sel.innerHTML = "";
@@ -119,9 +172,12 @@ async function loadDrugsCatalog() {
     }
 
     const preText = document.getElementById("curriculum-pre");
-    if (preText) preText.textContent = AppState.curriculumText.trim();
+    if (preText) {
+      preText.textContent = (AppState.lang === "ko" ? AppState.curriculumTextKo : AppState.curriculumText).trim();
+    }
 
     applyDrugDefaults("acetaminophen");
+    renderPGxDNAInspector();
   } catch (err) {
     console.error("Failed to load drug catalog:", err);
   }
@@ -157,6 +213,51 @@ function readPatientProfileFromUI() {
     kcnh2_herg_variant: document.getElementById("pgx-herg").value || "wildtype",
     g6pd_status: document.getElementById("pgx-g6pd").value || "normal",
   };
+}
+
+function renderPGxDNAInspector() {
+  const box = document.getElementById("pgx-dna-content");
+  if (!box) return;
+
+  const isKo = AppState.lang === "ko";
+  const details =
+    AppState.simResponse &&
+    AppState.simResponse.argon_analysis &&
+    AppState.simResponse.argon_analysis.pgx_genotype_details;
+
+  if (details && details.length > 0) {
+    // Highlight any non-wildtype variants first, or show CYP2E1 + CYP3A4 + hERG + G6PD summary
+    const activeItems = details.filter(
+      (g) => !["normal", "wildtype"].includes(g.selected_phenotype)
+    );
+    const itemsToShow = activeItems.length > 0 ? activeItems : [details[0], details[2]];
+
+    box.innerHTML = itemsToShow
+      .map(
+        (g) => `
+        <div style="margin-bottom:5px;padding-bottom:4px;border-bottom:1px dashed rgba(148,163,184,0.18);">
+          <div style="color:#f0abfc;font-weight:700;">
+            ${g.gene} · <span style="color:#38bdf8;">${g.allele}</span> (${g.rsid})
+          </div>
+          <div style="color:#94a3b8;font-size:10px;">${g.genomic_coord}</div>
+          <div style="color:#6ee7b7;font-size:10px;">
+            WT: <code>${g.wt_dna}</code> → Var: <code style="color:#fbbf24;">${g.var_dna}</code>
+          </div>
+          <div style="color:#e2e8f0;font-size:10px;">
+            AlphaGenome: <span style="color:#38bdf8;">${g.alphagenome_expression_score}</span>
+          </div>
+          <div style="color:#cbd5e1;font-size:10px;font-family:var(--font-sans);">
+            ${isKo ? g.desc_ko : g.desc_en}
+          </div>
+        </div>
+      `
+      )
+      .join("");
+  } else {
+    box.textContent = isKo
+      ? "유전자형(CYP2E1, CYP3A4, KCNH2, G6PD)을 변경하면 해당 rsID 변이 DNA 서열(ACGT)과 AlphaGenome 발현량 예측치가 표시됩니다."
+      : "Select any PGx variant above to inspect its rsID, Wildtype vs. Variant DNA sequence (ACGT), and AlphaGenome expression fold-change.";
+  }
 }
 
 async function runSimulation(useToxicDemoDose = false) {
@@ -204,7 +305,10 @@ async function runAF3NovelApproximation() {
   const patient = readPatientProfileFromUI();
 
   const btn = document.getElementById("btn-run-af3-submit");
-  btn.textContent = "Co-Folding & Computing ΔG / PK/PD...";
+  const isKo = AppState.lang === "ko";
+  btn.textContent = isKo
+    ? "AlphaFold DB 실시간 조회 및 ΔG / PK/PD 계산 중..."
+    : "Querying Live AlphaFold DB & Computing ΔG / PK/PD...";
   btn.disabled = true;
 
   try {
@@ -230,13 +334,22 @@ async function runAF3NovelApproximation() {
       jobPre.textContent = JSON.stringify(payload.af3_job_spec, null, 2);
     }
 
+    // Show live AlphaFold DB API response status
+    const ebiBox = document.getElementById("af3-ebi-live-box");
+    if (ebiBox && payload.af_ebi_live) {
+      const ebi = payload.af_ebi_live;
+      ebiBox.innerHTML = `✅ <strong>${ebi.source}</strong> | Entry: <code>${ebi.entry_id}</code> (UniProt: <code>${ebi.uniprot_id}</code>) | Global pLDDT: <strong>${ebi.global_plddt}</strong> | <a href="${ebi.pdb_url}" target="_blank" style="color:#38bdf8;">Download AF-DB PDB</a>`;
+    }
+
     AppState.currentRoute = route;
     applySimulationPayload(payload);
     document.getElementById("af3-modal").classList.remove("open");
   } catch (err) {
     console.error("AF3 approximation error:", err);
   } finally {
-    btn.textContent = "Run AlphaFold 3 Profile Approximation & 3D Simulation";
+    btn.textContent = isKo
+      ? "AlphaFold 3 프로파일 근사 및 3D 인체 시뮬레이션 실행"
+      : "Run AlphaFold 3 Profile Approximation & 3D Simulation";
     btn.disabled = false;
   }
 }
@@ -305,6 +418,9 @@ function applySimulationPayload(payload) {
 
   // Render 5-Check Pass/Fail Verification Loop
   renderVerificationLoop(payload.verification_loop);
+
+  // Render Phase 3 PGx DNA Variant Inspector
+  renderPGxDNAInspector();
 
   // Jump slider to peak plasma concentration Tmax so user immediately sees vibrant distribution
   const times = sim.timeline.time_h;
@@ -400,13 +516,26 @@ function renderSelectedOrganInspector(organKey) {
   const o = AppState.simResponse.simulation.organs[organKey];
   if (!o) return;
 
+  const isKo = AppState.lang === "ko";
+  const drugDetail = AppState.simResponse.drug_detail || {};
+  const organsKo = drugDetail.organs_ko || {};
+  const koOrganInfo = organsKo[organKey] || null;
+
   document.getElementById("insp-organ-name").textContent = `${o.name} — ${o.korean_name}`;
-  document.getElementById("insp-organ-metrics").textContent =
-    `Peak Risk: ${o.peak_risk_pct}% at t=${o.peak_time_h}h | Peak Conc: ${o.peak_conc_mg_l} mg/L | Kp=${o.kp_partition} | EC50,tox=${o.ec50_tox_mg_l} mg/L`;
-  document.getElementById("insp-organ-mech").textContent = o.primary_mechanism;
-  document.getElementById("insp-organ-pathway").textContent = o.lecture_pathway;
+  document.getElementById("insp-organ-metrics").textContent = isKo
+    ? `최대 독성 위험도: ${o.peak_risk_pct}% (도달시간 t=${o.peak_time_h}h) | 조직 최고농도: ${o.peak_conc_mg_l} mg/L | 분배계수 Kp=${o.kp_partition} | 독성 임계치 EC50,tox=${o.ec50_tox_mg_l} mg/L`
+    : `Peak Risk: ${o.peak_risk_pct}% at t=${o.peak_time_h}h | Peak Conc: ${o.peak_conc_mg_l} mg/L | Kp=${o.kp_partition} | EC50,tox=${o.ec50_tox_mg_l} mg/L`;
+
+  if (isKo && koOrganInfo) {
+    document.getElementById("insp-organ-mech").textContent = koOrganInfo.mech || o.primary_mechanism;
+    document.getElementById("insp-organ-pathway").textContent = koOrganInfo.pathway || o.lecture_pathway;
+  } else {
+    document.getElementById("insp-organ-mech").textContent = o.primary_mechanism;
+    document.getElementById("insp-organ-pathway").textContent = o.lecture_pathway;
+  }
+
   document.getElementById("insp-organ-biomarkers").textContent =
-    "Biomarkers: " + (o.biomarkers || []).join(" · ");
+    (isKo ? "임상 바이오마커: " : "Biomarkers: ") + (o.biomarkers || []).join(" · ");
 }
 
 function renderPKPDChart(sim) {
@@ -490,54 +619,101 @@ function renderPKPDChart(sim) {
 
 function renderArgonAnalysis(argon, drugDetail) {
   if (!argon) return;
-  document.getElementById("argon-exec-summary").textContent = argon.executive_summary || "";
-  const c = argon.molecular_cascade_4step || {};
+  const isKo = AppState.lang === "ko";
+
+  document.getElementById("argon-exec-summary").textContent = isKo
+    ? argon.executive_summary_ko || argon.executive_summary || ""
+    : argon.executive_summary || "";
+
+  const c = isKo
+    ? argon.molecular_cascade_4step_ko || argon.molecular_cascade_4step || {}
+    : argon.molecular_cascade_4step || {};
+
   document.getElementById("cascade-s1").textContent = c.step1_delivery || "";
   document.getElementById("cascade-s2").textContent = c.step2_reaction || "";
   document.getElementById("cascade-s3").textContent = c.step3_cellular_dysfunction || "";
   document.getElementById("cascade-s4").textContent = c.step4_disrepair_biomarkers || "";
 
-  const antidoteText =
-    drugDetail && drugDetail.antidote
-      ? `${drugDetail.antidote.name} — ${drugDetail.antidote.mechanism}`
-      : argon.antidote_protocol;
+  let antidoteText = "";
+  if (isKo) {
+    antidoteText =
+      (drugDetail && drugDetail.antidote_ko) ||
+      argon.antidote_protocol_ko ||
+      argon.antidote_protocol ||
+      "";
+  } else {
+    antidoteText =
+      drugDetail && drugDetail.antidote
+        ? `${drugDetail.antidote.name} — ${drugDetail.antidote.mechanism}`
+        : argon.antidote_protocol || "";
+  }
   document.getElementById("gate-antidote-text").textContent = antidoteText;
 }
 
 function renderVerificationLoop(vloop) {
   if (!vloop) return;
+  const isKo = AppState.lang === "ko";
   const badge = document.getElementById("verify-overall-badge");
-  badge.textContent = `VERIFIED ${vloop.passed_count}/${vloop.total_checks} PASS`;
+  badge.textContent = isKo
+    ? `검증 완료 ${vloop.passed_count}/${vloop.total_checks} 통과`
+    : `VERIFIED ${vloop.passed_count}/${vloop.total_checks} PASS`;
   badge.className = `badge-pill ${vloop.all_passed ? "badge-verified" : "badge-warning"}`;
 
   const list = document.getElementById("verification-list");
   list.innerHTML = (vloop.checks || [])
-    .map(
-      (chk) => `
+    .map((chk) => {
+      const title = isKo ? chk.name_ko || chk.name : chk.name;
+      const detail = isKo ? chk.detail_ko || chk.detail : chk.detail;
+      return `
       <div class="verify-item">
         <div>
-          <div class="v-title">${chk.passed ? "✅" : "⚠️"} ${chk.name}</div>
-          <div class="v-detail">${chk.detail}</div>
+          <div class="v-title">${chk.passed ? "✅" : "⚠️"} ${title}</div>
+          <div class="v-detail">${detail}</div>
         </div>
         <span class="badge-pill badge-verified">${chk.passed ? "PASS" : "WARN"}</span>
       </div>
-    `
-    )
+    `;
+    })
     .join("");
 }
 
 function setLoadingState(loading) {
   const btn = document.getElementById("btn-simulate");
   if (!btn) return;
+  const isKo = AppState.lang === "ko";
   btn.disabled = loading;
-  btn.textContent = loading ? "Solving ODEs & Argon Verification..." : "▶ Simulate 3D PK/PD & Toxicity";
+  if (loading) {
+    btn.textContent = isKo
+      ? "미분방정식(ODE) 및 Argon 검증 계산 중..."
+      : "Solving ODEs & Argon Verification...";
+  } else {
+    btn.textContent = isKo
+      ? "▶ 3D 체내 PK/PD 및 독성 시뮬레이션 실행"
+      : "▶ Simulate 3D PK/PD & Toxicity";
+  }
 }
 
 function bindUIControls() {
+  // Language Toggle Button (EN <-> KO)
+  const langBtn = document.getElementById("btn-lang-toggle");
+  if (langBtn) {
+    langBtn.addEventListener("click", () => {
+      setLanguage(AppState.lang === "en" ? "ko" : "en");
+    });
+  }
+
   // Drug Select
   document.getElementById("drug-select").addEventListener("change", (e) => {
     applyDrugDefaults(e.target.value);
     runSimulation(false);
+  });
+
+  // PGx Selectors auto-trigger simulation & DNA sequence update
+  ["pgx-cyp2e1", "pgx-cyp3a4", "pgx-herg", "pgx-g6pd"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener("change", () => runSimulation(false));
+    }
   });
 
   // Route Tabs
@@ -560,11 +736,14 @@ function bindUIControls() {
   const playBtn = document.getElementById("btn-play-timeline");
   playBtn.addEventListener("click", () => {
     AppState.isPlaying = !AppState.isPlaying;
-    playBtn.textContent = AppState.isPlaying ? "⏸ Pause" : "▶ Play 24h";
+    const isKo = AppState.lang === "ko";
+    playBtn.textContent = AppState.isPlaying
+      ? isKo ? "⏸ 일시정지" : "⏸ Pause"
+      : isKo ? "▶ 24시간 재생" : "▶ Play 24h";
     if (AppState.isPlaying) {
       AppState.playTimer = setInterval(() => {
         const max = parseInt(slider.max, 10) || 240;
-        const next = (AppState.timeIndex + 2) > max ? 0 : AppState.timeIndex + 2;
+        const next = AppState.timeIndex + 2 > max ? 0 : AppState.timeIndex + 2;
         setTimeFrame(next);
       }, 65);
     } else {
@@ -575,8 +754,11 @@ function bindUIControls() {
   // 3D Viewport Top Controls
   document.getElementById("btn-toggle-shell").addEventListener("click", (e) => {
     const visible = AppState.body3d.toggleShell();
+    const isKo = AppState.lang === "ko";
     e.target.classList.toggle("active", !visible);
-    e.target.textContent = visible ? "X-Ray Organs Only" : "Show Body Shell";
+    e.target.textContent = visible
+      ? isKo ? "X-Ray 장기 투시 모드" : "X-Ray Organs Only"
+      : isKo ? "신체 외피 표시" : "Show Body Shell";
   });
 
   document.getElementById("btn-toggle-rotate").addEventListener("click", (e) => {
@@ -649,7 +831,10 @@ function bindUIControls() {
     const data = await res.json();
     if (data.status === "verified") {
       const statusEl = document.getElementById("gate-approval-status");
-      statusEl.textContent = `✅ Verified & Signed Off (${data.record.approval_id} at ${data.record.timestamp_iso})`;
+      const isKo = AppState.lang === "ko";
+      statusEl.textContent = isKo
+        ? `✅ 연구자 서명 완료 (${data.record.approval_id} · ${data.record.timestamp_iso})`
+        : `✅ Verified & Signed Off (${data.record.approval_id} at ${data.record.timestamp_iso})`;
       statusEl.style.color = "#34d399";
     }
   });
