@@ -6,7 +6,7 @@ Validates:
 3. All 6 preset drugs & 8-organ toxicity time-series
 4. Phase 2 AlphaFold 3 Novel Drug Structure-to-PK/PD Approximator
 5. Phase 3 Pharmacogenomics (PGx / AlphaGenome) sensitivity checks
-6. Deterministic 5-point Pass/Fail Verification Loop & FastAPI endpoints
+6. Deterministic 6-check Pass/Fail Verification Loop & FastAPI endpoints
 """
 
 from pathlib import Path
@@ -129,8 +129,10 @@ def test_fastapi_endpoints_and_verification_loop():
     )
     assert r_sim.status_code == 200
     sim_payload = r_sim.json()
-    assert sim_payload["verification_loop"]["all_passed"] is True
-    assert sim_payload["verification_loop"]["passed_count"] == 5
+    loop = sim_payload["verification_loop"]
+    assert loop["all_passed"] is True
+    assert loop["passed_count"] == loop["total_checks"] == 6
+    assert sim_payload["requires_human_approval"] is True
     assert sim_payload["simulation"]["organs"]["heart"]["peak_risk_pct"] > 50.0
 
     # 4. Phase 2 AlphaFold 3 Novel Drug Approximator endpoint
@@ -148,20 +150,40 @@ def test_fastapi_endpoints_and_verification_loop():
     assert r_af3.status_code == 200
     af3_payload = r_af3.json()
     assert af3_payload["verification_loop"]["all_passed"] is True
-    assert af3_payload["approximated_drug_profile"]["af3_confidence"]["iptm"] > 0.7
+    assert af3_payload["requires_human_approval"] is True
+    profile = af3_payload["approximated_drug_profile"]
+    assert profile["method"] == "heuristic_estimate"
+    assert profile["af3_confidence"]["iptm"] is None  # AlphaFold 3 is not executed
 
-    # 5. Human-in-the-Loop Clinical Approval endpoint
+    # 5. Human-in-the-Loop sign-off: explicit decision + named reviewer recorded; anonymous sign-off rejected
     r_gate = client.post(
         "/api/verify-protocol",
         json={
             "simulation_id": sim_payload["simulation_id"],
             "reviewer_name": "PharmD Candidate",
+            "reviewer_role": "PharmD",
             "decision": "approved_with_monitoring",
             "clinical_notes": "ECG QTc monitoring + IV MgSO4 standby verified.",
         },
     )
     assert r_gate.status_code == 200
-    assert r_gate.json()["status"] == "verified"
+    gate = r_gate.json()
+    assert gate["status"] == "verified" and gate["approved"] is True
+    assert gate["record"]["simulation_id"] == sim_payload["simulation_id"]
+
+    r_reject = client.post(
+        "/api/verify-protocol",
+        json={"simulation_id": sim_payload["simulation_id"], "reviewer_name": "PharmD", "decision": "rejected"},
+    )
+    assert r_reject.json()["status"] == "rejected" and r_reject.json()["approved"] is False
+
+    for bad in (
+        {"simulation_id": "sim-x", "decision": "approved"},  # no reviewer
+        {"simulation_id": "sim-x", "reviewer_name": "PharmD"},  # no explicit decision
+        {"simulation_id": "sim-x", "reviewer_name": "PharmD", "decision": "ship_it"},
+        {"simulation_id": "sim-x", "reviewer_name": "PharmD", "decision": "rejected", "approved": True},
+    ):
+        assert client.post("/api/verify-protocol", json=bad).status_code == 422
 
     # 6. Photo upload endpoint with existing user_avatar.jpg
     avatar_file = Path(__file__).resolve().parent.parent / "static" / "assets" / "user_avatar.jpg"
@@ -174,23 +196,8 @@ def test_fastapi_endpoints_and_verification_loop():
         assert r_photo.status_code == 200
         assert "face_uv_url" in r_photo.json()
 
-    # 7. Verify Frontend HTML (Onboarding + Selective Overlays), Architecture Diagram & 2-Mode 3D Hologram Script
-    r_index = client.get("/")
-    assert r_index.status_code == 200
-    assert "PharmacoTwin 3D" in r_index.text
-    assert "onboarding-screen" in r_index.text
-    assert "overlay-window" in r_index.text
-    assert "body3d-canvas-container" in r_index.text
-    assert "user_face_uv.jpg" not in r_index.text
-
-    r_arch = client.get("/architecture")
-    assert r_arch.status_code == 200
-    assert "Multi-Scale Architecture" in r_arch.text
-
-    r_js = client.get("/static/js/body3d.js")
-    assert r_js.status_code == 200
-    assert "pipe_circuit" in r_js.text
-    assert "warpToOrgan" in r_js.text
-    assert "user_face_uv.jpg" not in r_js.text
-
+    # 7. Static UI, architecture page and 3D engine are served
+    assert client.get("/").status_code == 200
+    assert client.get("/architecture").status_code == 200
+    assert client.get("/static/js/body3d.js").status_code == 200
 

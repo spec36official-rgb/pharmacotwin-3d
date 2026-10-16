@@ -90,12 +90,17 @@ class AF3ApproximationRequest(BaseModel):
     patient: PatientProfile = Field(default_factory=PatientProfile)
 
 
+PROTOCOL_DECISIONS = {"approved", "approved_with_monitoring", "needs_revision", "rejected"}
+APPROVING_DECISIONS = {"approved", "approved_with_monitoring"}
+
+
 class ProtocolApprovalRequest(BaseModel):
     simulation_id: str = Field(default="sim-default")
-    reviewer_name: str = Field(default="Clinical Pharmacology Lead")
+    reviewer_name: str = Field(default="")
     reviewer_role: str = Field(default="PharmD / Toxicology Researcher")
-    decision: str = Field(default="approved_with_monitoring")
-    clinical_notes: str = Field(default="Verified CYP/renal adjustments and antidote readiness.")
+    decision: Optional[str] = Field(default=None)
+    approved: Optional[bool] = Field(default=None)
+    clinical_notes: str = Field(default="")
     selected_antidote: Optional[str] = Field(default=None)
 
 
@@ -153,7 +158,7 @@ def get_drug_detail(drug_id: str):
 def run_simulation(req: SimulationRequest):
     """
     Execute Phase 1 + Phase 3 Multi-Scale PK/PD + Thermodynamic + 8-Organ Toxicity simulation,
-    followed by Gemini 4 Argon mechanistic reasoning and the 5-point Pass/Fail Verification Loop.
+    followed by Gemini 4 Argon reasoning and the 6-check Pass/Fail Verification Loop.
     """
     drug = DRUG_DATABASE.get(req.drug_id.lower())
     if not drug:
@@ -200,7 +205,8 @@ def run_simulation(req: SimulationRequest):
         "simulation": sim_result,
         "argon_analysis": argon_analysis,
         "verification_loop": argon_analysis["verification_loop"],
-        "requires_human_approval": sim_result["pk_summary"]["max_organ_toxicity_pct"] >= 35.0,
+        # Every simulation needs human sign-off via /api/verify-protocol, regardless of predicted risk.
+        "requires_human_approval": True,
     }
 
 
@@ -228,7 +234,8 @@ def run_af3_approximation(req: AF3ApproximationRequest):
     return {
         "simulation_id": f"af3-{uuid.uuid4().hex[:8]}",
         "af3_job_spec": bundle["af3_job_spec"],
-        "af_ebi_live": bundle.get("af_ebi_live", {}),
+        "af3_job_metadata": bundle["af3_job_metadata"],
+        "af_ebi_live": bundle["af_ebi_live"],
         "approximated_drug_profile": bundle["approximated_drug_profile"],
         "simulation": bundle["simulation"],
         "argon_analysis": bundle["argon_analysis"],
@@ -314,24 +321,45 @@ async def upload_user_photo(file: UploadFile = File(...)):
 @app.post("/api/verify-protocol")
 def approve_clinical_protocol(req: ProtocolApprovalRequest):
     """
-    Human-in-the-Loop Clinical & Research Safety Gate:
-    Records pharmacist/researcher verification before high-risk dosing or antidote intervention.
+    Human-in-the-Loop sign-off gate. Every simulation must be reviewed here before export.
+    Requires a named reviewer and an explicit decision (and/or `approved` flag); every sign-off,
+    including rejections, is appended to the audit log.
     """
+    reviewer = req.reviewer_name.strip()
+    if not reviewer:
+        raise HTTPException(status_code=422, detail="reviewer_name is required for human sign-off")
+    if not req.simulation_id.strip():
+        raise HTTPException(status_code=422, detail="simulation_id is required")
+    if req.decision is None and req.approved is None:
+        raise HTTPException(status_code=422, detail="An explicit decision or approved flag is required")
+    decision = req.decision or ("approved" if req.approved else "rejected")
+    if decision not in PROTOCOL_DECISIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"decision must be one of {sorted(PROTOCOL_DECISIONS)}",
+        )
+    approved = decision in APPROVING_DECISIONS
+    if req.approved is not None and req.approved != approved:
+        raise HTTPException(status_code=422, detail=f"approved={req.approved} contradicts decision '{decision}'")
+
     record = {
         "approval_id": f"gate-{uuid.uuid4().hex[:8]}",
         "simulation_id": req.simulation_id,
-        "reviewer_name": req.reviewer_name,
+        "reviewer_name": reviewer,
         "reviewer_role": req.reviewer_role,
-        "decision": req.decision,
+        "decision": decision,
+        "approved": approved,
         "clinical_notes": req.clinical_notes,
         "selected_antidote": req.selected_antidote,
         "timestamp_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     PROTOCOL_AUDIT_LOG.append(record)
     return {
-        "status": "verified",
+        "status": "verified" if approved else "rejected",
+        "approved": approved,
         "record": record,
-        "total_approvals": len(PROTOCOL_AUDIT_LOG),
+        "total_approvals": sum(1 for r in PROTOCOL_AUDIT_LOG if r["approved"]),
+        "total_reviews": len(PROTOCOL_AUDIT_LOG),
     }
 
 

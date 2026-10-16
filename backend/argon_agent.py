@@ -11,6 +11,8 @@ import os
 import re
 import time
 import urllib.request
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from backend.pkpd_engine import (
@@ -333,6 +335,255 @@ def fetch_live_alphafold_ebi_metadata(uniprot_id: str) -> Optional[Dict[str, Any
     return None
 
 
+_SMILES_ATOM_RE = re.compile(r"\[[^\]]+\]|Cl|Br|[BCNOSPFI]|[bcnosp]")
+_BRACKET_ELEMENT_RE = re.compile(r"^\d*([A-Z][a-z]?|[a-z]{1,2})")
+_HALOGENS = {"F", "Cl", "Br", "I", "At"}
+
+
+def smiles_atom_counts(smiles: str) -> Dict[str, int]:
+    """
+    Count atoms from SMILES tokens: bracket atoms ([Pt], [nH], [N+], [13CH3]) are one atom each with
+    the element taken from inside the brackets; otherwise organic-subset symbols (Cl/Br before C/B)
+    and aromatic lowercase atoms. Hydrogens are not heavy atoms.
+    """
+    elements: List[str] = []
+    for token in _SMILES_ATOM_RE.findall(smiles or ""):
+        if token.startswith("["):
+            m = _BRACKET_ELEMENT_RE.match(token[1:-1])
+            if not m:
+                continue
+            symbol = m.group(1)
+        else:
+            symbol = token
+        elements.append(symbol[0].upper() + symbol[1:])
+    heavy = [e for e in elements if e != "H"]
+    return {
+        "heavy_atoms": len(heavy),
+        "n_count": sum(1 for e in heavy if e == "N"),
+        "o_count": sum(1 for e in heavy if e == "O"),
+        "halogens": sum(1 for e in heavy if e in _HALOGENS),
+    }
+
+
+ALPHAFOLD_PDB_DIR = Path(__file__).resolve().parent.parent / "static" / "assets" / "alphafold_pdb"
+_THREE_TO_ONE = {
+    "ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D", "CYS": "C", "GLN": "Q", "GLU": "E", "GLY": "G",
+    "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K", "MET": "M", "PHE": "F", "PRO": "P", "SER": "S",
+    "THR": "T", "TRP": "W", "TYR": "Y", "VAL": "V", "SEC": "U", "PYL": "O",
+}
+_UNIPROT_FASTA_URL = "https://rest.uniprot.org/uniprotkb/{uniprot}.fasta"
+_UNIPROT_FAILURE_RETRY_S = 300.0
+_uniprot_sequence_cache: Dict[str, tuple[Optional[str], float]] = {}
+
+
+@lru_cache(maxsize=1)
+def _alphafold_structures_index() -> Dict[str, Any]:
+    try:
+        return json.loads((ALPHAFOLD_PDB_DIR / "alphafold_structures.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _local_alphafold_entry(uniprot_id: str) -> Optional[Dict[str, Any]]:
+    for entry in _alphafold_structures_index().values():
+        if isinstance(entry, dict) and entry.get("uniprot") == uniprot_id:
+            return entry
+    return None
+
+
+def parse_pdb_ca_sequence(pdb_text: str) -> str:
+    """One-letter sequence of the first chain from CA ATOM records (one residue per resSeq+iCode)."""
+    residues: List[str] = []
+    seen = set()
+    chain = None
+    for line in pdb_text.splitlines():
+        if not line.startswith("ATOM") or line[12:16].strip() != "CA":
+            continue
+        line_chain = line[21:22]
+        if chain is None:
+            chain = line_chain
+        elif line_chain != chain:
+            break
+        key = line[22:27]
+        if key in seen:
+            continue  # alternate locations
+        seen.add(key)
+        residues.append(_THREE_TO_ONE.get(line[17:20].strip().upper(), "X"))
+    return "".join(residues)
+
+
+@lru_cache(maxsize=32)
+def _local_pdb_sequence(uniprot_id: str) -> Optional[str]:
+    candidates: List[Path] = []
+    entry = _local_alphafold_entry(uniprot_id)
+    if entry and entry.get("pdb_url"):
+        candidates.append(ALPHAFOLD_PDB_DIR / Path(entry["pdb_url"]).name)
+    candidates.extend(sorted(ALPHAFOLD_PDB_DIR.glob(f"*_{uniprot_id}.pdb")))
+    for path in candidates:
+        try:
+            sequence = parse_pdb_ca_sequence(path.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            continue
+        if sequence:
+            return sequence
+    return None
+
+
+def _fetch_uniprot_fasta(uniprot_id: str) -> Optional[str]:
+    """Fetch the canonical sequence from UniProt REST (short timeout); None on any failure."""
+    url = _UNIPROT_FASTA_URL.format(uniprot=uniprot_id)
+    try:
+        req = urllib.request.Request(url, headers={"Accept": "text/plain", "User-Agent": "PharmacoTwin3D/2.0"})
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            text = resp.read().decode("utf-8")
+    except Exception:
+        return None
+    sequence = "".join(line.strip() for line in text.splitlines() if line and not line.startswith(">"))
+    return sequence if re.fullmatch(r"[A-Z]+", sequence or "") else None
+
+
+def resolve_target_sequence(uniprot_id: str) -> tuple[Optional[str], str]:
+    """
+    Target protein sequence for the AlphaFold 3 job: bundled AlphaFold DB PDB first, then UniProt REST
+    (cached; failures retried after a cooldown). Returns (sequence | None, source label).
+    """
+    clean = (uniprot_id or "").strip().upper()
+    if not clean:
+        return None, "unavailable"
+    local = _local_pdb_sequence(clean)
+    if local:
+        return local, "alphafold_db_local_pdb"
+    cached = _uniprot_sequence_cache.get(clean)
+    if cached and (cached[0] or time.time() - cached[1] < _UNIPROT_FAILURE_RETRY_S):
+        sequence = cached[0]
+    else:
+        sequence = _fetch_uniprot_fasta(clean)
+        _uniprot_sequence_cache[clean] = (sequence, time.time())
+    return (sequence, "uniprot_rest") if sequence else (None, "unavailable")
+
+
+
+# Structured claims Argon must return alongside its narrative; each is checked against sim_result.
+CLAIM_FIELDS = (
+    "cmax_mg_l",
+    "tmax_h",
+    "auc_0_t_mg_h_l",
+    "primary_alert_organ",
+    "primary_peak_risk_pct",
+    "crcl_ml_min",
+)
+CLAIM_REL_TOL = 0.05
+
+# A number immediately followed by one of the checked units. Numbers glued to letters (q8h, k10)
+# and rate units (h⁻¹, h-1, mL/min/1.73 m²) are ignored so only genuine quantity statements count.
+_UNIT_NUMBER_RE = re.compile(
+    r"(?<![\w.,])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s*(mg/L|mL/min|%|hours?|hrs?|h)(?![\w⁻¹^/·\-])",
+    re.IGNORECASE,
+)
+_FRACTION_KEYS_AS_PCT = ("f_bioavailability", "fu_plasma", "fe_renal")
+
+
+def _expected_claims(sim_result: Dict[str, Any]) -> Dict[str, Any]:
+    pk = sim_result["pk_summary"]
+    primary = pk["primary_alert_organ"]
+    return {
+        "cmax_mg_l": pk["cmax_mg_l"],
+        "tmax_h": pk["tmax_h"],
+        "auc_0_t_mg_h_l": pk["auc_0_t_mg_h_l"],
+        "primary_alert_organ": primary,
+        "primary_peak_risk_pct": sim_result["organs"][primary]["peak_risk_pct"],
+        "crcl_ml_min": sim_result["patient_computed"]["crcl_ml_min"],
+    }
+
+
+def _reference_values_by_unit(sim_result: Dict[str, Any]) -> Dict[str, List[float]]:
+    """Collect every scalar simulation output a summary may legitimately quote, grouped by unit."""
+    refs: Dict[str, List[float]] = {"mg/L": [], "h": [], "%": [], "mL/min": []}
+
+    def walk(node: Any, key: str) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                walk(v, str(k).lower())
+            return
+        if isinstance(node, bool) or not isinstance(node, (int, float)):
+            return
+        value = float(node)
+        if key.endswith("_mg_l"):
+            refs["mg/L"].append(value)
+        elif key.endswith("_pct"):
+            refs["%"].append(value)
+            if "gsh" in key:
+                refs["%"].append(100.0 - value)  # "GSH depleted by X%"
+        elif key.endswith("_ml_min"):
+            refs["mL/min"].append(value)
+        elif key.endswith("_h") and not key.startswith("k") and not key.endswith("_l_h"):
+            refs["h"].append(value)
+        elif key in _FRACTION_KEYS_AS_PCT:
+            refs["%"].append(value * 100.0)
+
+    walk(sim_result, "")
+    times = sim_result.get("timeline", {}).get("time_h") or []
+    if times:
+        refs["h"].append(float(times[-1]))  # simulated horizon, e.g. "over 24 h"
+    return refs
+
+
+def _matches(stated: float, actual: float, decimals: int) -> bool:
+    rounding_slack = 0.5 * 10 ** (-decimals) + 1e-9
+    return abs(stated - actual) <= max(CLAIM_REL_TOL * abs(actual), rounding_slack)
+
+
+def _check_argon_claims(
+    sim_result: Dict[str, Any],
+    claims: Any,
+    summary_en: str,
+) -> tuple[List[Dict[str, Any]], int, int]:
+    """
+    Compare structured claims and unit-tagged numbers in the English summary against the simulation.
+    Returns (issues, matched_claim_count, checked_summary_number_count).
+    """
+    issues: List[Dict[str, Any]] = []
+    expected = _expected_claims(sim_result)
+    matched = 0
+    if not isinstance(claims, dict):
+        issues.append({"field": "claims", "claimed": None, "expected": "object with " + ", ".join(CLAIM_FIELDS)})
+        claims = {}
+    for field in CLAIM_FIELDS:
+        truth = expected[field]
+        stated = claims.get(field)
+        if field == "primary_alert_organ":
+            if isinstance(stated, str) and stated.strip().lower() == truth:
+                matched += 1
+            else:
+                issues.append({"field": field, "claimed": stated, "expected": truth})
+            continue
+        try:
+            stated_f = float(stated)
+        except (TypeError, ValueError):
+            issues.append({"field": field, "claimed": stated, "expected": truth})
+            continue
+        if abs(stated_f - float(truth)) <= max(CLAIM_REL_TOL * abs(float(truth)), 1e-3):
+            matched += 1
+        else:
+            issues.append({"field": field, "claimed": stated_f, "expected": truth})
+
+    refs = _reference_values_by_unit(sim_result)
+    mentions = 0
+    for m in _UNIT_NUMBER_RE.finditer(summary_en or ""):
+        raw_num, raw_unit = m.group(1), m.group(2).lower()
+        unit = {"mg/l": "mg/L", "ml/min": "mL/min", "%": "%"}.get(raw_unit, "h")
+        stated = float(raw_num.replace(",", ""))
+        decimals = len(raw_num.split(".")[1]) if "." in raw_num else 0
+        mentions += 1
+        if not any(_matches(stated, ref, decimals) for ref in refs[unit]):
+            issues.append({
+                "field": "executive_summary",
+                "claimed": f"{raw_num} {unit}",
+                "expected": f"a simulated {unit} value (none within {int(CLAIM_REL_TOL * 100)}%)",
+            })
+    return issues, matched, mentions
+
+
 def _verify_simulation_claims(sim_result: Dict[str, Any], analysis_payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Deterministic Pass/Fail Verification Loop (Required by Hackathon Judging Criteria §4).
@@ -402,23 +653,46 @@ def _verify_simulation_claims(sim_result: Dict[str, Any], analysis_payload: Dict
         "detail_ko": f"8개 장기 전체 검증 완료 | 최우선 주의 장기: {organs[primary_organ]['korean_name']} (최대 위험도 {sim_result['pk_summary']['max_organ_toxicity_pct']}%)",
     })
 
-    # Check 5: Human-in-the-Loop Clinical Safeguard Presence
-    has_safeguard = bool(analysis_payload.get("requires_human_verification", True)) and len(analysis_payload.get("antidote_protocol", "")) > 5
+    # Check 5: Human-in-the-Loop gate presence. Every simulation must be signed off by a human
+    # via /api/verify-protocol before export; this check only confirms the gate flag is set.
+    has_safeguard = analysis_payload.get("requires_human_verification") is True
     checks.append({
         "check_id": "HUMAN_IN_THE_LOOP_SAFEGUARD",
         "name": "Clinical/Research Human-in-the-Loop Verification Gate",
         "name_ko": "약사/연구자 임상 안전 승인 게이트(Human-in-the-Loop) 활성화 검증",
         "passed": has_safeguard,
-        "detail": "Mandatory pharmacist/researcher verification checkpoint active",
-        "detail_ko": "고위험 용량 및 해독제 프로토콜에 대한 약사/연구자 최종 서명 게이트 정상 작동",
+        "detail": "Human sign-off required before export" if has_safeguard else "Human sign-off gate missing",
+        "detail_ko": "내보내기 전 약사/연구자 최종 승인 필요" if has_safeguard else "사람 승인 게이트 누락",
     })
 
-    all_passed = all(c["passed"] for c in checks)
+    # Check 6: Every number the narrative states must match the simulation.
+    claim_issues, n_claims, n_mentions = _check_argon_claims(
+        sim_result,
+        analysis_payload.get("claims"),
+        str(analysis_payload.get("executive_summary", "")),
+    )
+    claims_ok = not claim_issues
+    if claims_ok:
+        claim_detail = f"{n_claims}/{len(CLAIM_FIELDS)} structured claims and {n_mentions} unit-tagged numbers in the summary match the simulation"
+        claim_detail_ko = f"구조화 수치 {n_claims}/{len(CLAIM_FIELDS)}개 및 요약문 내 단위 수치 {n_mentions}개가 시뮬레이션 결과와 일치"
+    else:
+        listed = "; ".join(f"{i['field']}: claimed {i['claimed']}, expected {i['expected']}" for i in claim_issues[:6])
+        claim_detail = f"{len(claim_issues)} mismatch(es): {listed}"
+        claim_detail_ko = f"불일치 {len(claim_issues)}건: {listed}"
+    checks.append({
+        "check_id": "ARGON_CLAIM_CONSISTENCY",
+        "name": "Narrative Claims Match Simulation (Cmax, Tmax, AUC, organ, risk, CrCl)",
+        "name_ko": "해석 문장 수치와 시뮬레이션 결과 일치 검증 (Cmax·Tmax·AUC·장기·위험도·CrCl)",
+        "passed": claims_ok,
+        "detail": claim_detail,
+        "detail_ko": claim_detail_ko,
+        "issues": claim_issues,
+    })
+
     return {
-        "all_passed": all_passed,
+        "all_passed": all(c["passed"] for c in checks),
         "passed_count": sum(1 for c in checks if c["passed"]),
         "total_checks": len(checks),
-        "iterations": 1,
         "checks": checks,
     }
 
@@ -437,6 +711,75 @@ def build_pgx_genotype_report(patient: PatientProfile) -> Dict[str, Any]:
     }
 
 
+ARGON_MODEL_ID = os.environ.get("ARGON_MODEL_ID", "gemini-4-argon")
+ARGON_MAX_ATTEMPTS = 3
+ARGON_LOOP_BUDGET_S = 90.0
+ARGON_HTTP_TIMEOUT_S = 60.0
+ARGON_MIN_ATTEMPT_S = 8.0
+ARGON_NARRATIVE_KEYS = ("executive_summary", "executive_summary_ko", "molecular_cascade_4step", "antidote_protocol")
+
+
+def _build_argon_prompt(
+    sim_result: Dict[str, Any],
+    patient: PatientProfile,
+    regimen: DosingRegimen,
+    primary_organ_data: Dict[str, Any],
+) -> str:
+    pk = sim_result["pk_summary"]
+    pc = sim_result["patient_computed"]
+    thermo = sim_result["thermodynamics"]
+    return f"""You are Gemini 4 Argon acting as a Senior Quantitative Systems Pharmacologist and Toxicologist.
+Cross-reference the 7-module Toxicology Lecture Curriculum below with the 2-compartment PK/PD and thermodynamic simulation data.
+
+{TOXICOLOGY_CURRICULUM_CONTEXT}
+
+[LIVE SIMULATION DATA]
+- Drug: {sim_result['drug_name']} ({sim_result['generic_class']})
+- Regimen: {regimen.dose_mg} mg via {regimen.route}, {regimen.num_doses} dose(s) every {regimen.interval_h} hours, simulated over {regimen.duration_h} hours
+- Patient: {patient.age}yo {patient.sex}, {patient.weight_kg} kg, SCr={patient.serum_creatinine_mg_dl} mg/dL -> CrCl={pc['crcl_ml_min']} mL/min
+- PGx Profile: CYP2E1={patient.cyp2e1_phenotype}, CYP3A4={patient.cyp3a4_phenotype}, hERG={patient.kcnh2_herg_variant}, G6PD={patient.g6pd_status}
+- PK Metrics: Cmax={pk['cmax_mg_l']} mg/L, Tmax={pk['tmax_h']} h, AUC0-t={pk['auc_0_t_mg_h_l']} mg*h/L, t1/2={pc['t_half_eff_h']} h, Min Hepatic GSH={pk['min_hepatic_gsh_pct']}%
+- Thermodynamic Binding ({sim_result['structure_3d']['target_protein']}): DeltaG={thermo['delta_g_kcal_mol']} kcal/mol, Kd={thermo['kd_um']} uM
+- Primary Alert Organ key: {pk['primary_alert_organ']} = {primary_organ_data['name']} (Peak Risk={primary_organ_data['peak_risk_pct']}% at {primary_organ_data['peak_time_h']} h, Peak Conc={primary_organ_data['peak_conc_mg_l']} mg/L)
+
+[RULES]
+Every number you write must be copied from [LIVE SIMULATION DATA]. A deterministic checker compares
+each number tagged mg/L, h, % or mL/min in "executive_summary" and every field of "claims" against the simulation;
+any mismatch rejects your answer.
+
+Return ONLY valid JSON with keys:
+- "executive_summary": concise 3-sentence quantitative interpretation in English
+- "executive_summary_ko": concise 3-sentence quantitative interpretation in Korean
+- "molecular_cascade_4step": object with keys "step1_delivery", "step2_reaction", "step3_cellular_dysfunction", "step4_disrepair_biomarkers"
+- "antidote_protocol": specific antidote, dose adjustment, or hemodialysis recommendation
+- "claims": object with numeric "cmax_mg_l", "tmax_h", "auc_0_t_mg_h_l", "primary_peak_risk_pct", "crcl_ml_min" and string "primary_alert_organ" (one of liver, kidney, heart, brain, lungs, blood, ocular, gi)
+"""
+
+
+def _parse_argon_json(raw_text: str) -> Optional[Dict[str, Any]]:
+    match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _build_correction_feedback(iteration: int, issues: List[Dict[str, Any]], sim_result: Dict[str, Any]) -> str:
+    lines = [
+        f"\n\n[CORRECTION REQUIRED — attempt {iteration} rejected by the deterministic checker]",
+        "These statements do not match the simulation:",
+    ]
+    for issue in issues:
+        lines.append(f"- {issue['field']}: you stated {issue['claimed']!r}; correct value: {issue['expected']}")
+    correct = ", ".join(f"{k}={v}" for k, v in _expected_claims(sim_result).items())
+    lines.append(f"Correct values: {correct}.")
+    lines.append("Rewrite the complete JSON object. Copy these values exactly and do not introduce other numbers with units.")
+    return "\n".join(lines)
+
+
 def analyze_simulation_with_argon(
     sim_result: Dict[str, Any],
     patient: PatientProfile,
@@ -444,9 +787,12 @@ def analyze_simulation_with_argon(
     thinking_level: str = "medium",
 ) -> Dict[str, Any]:
     """
-    Synthesize bilingual (English + Korean) mechanistic toxicology & PK/PD interpretation
-    grounded in the 7 lecture PDFs, with live Gemini 4 Argon Interactions API support and
-    5-step deterministic verification loop.
+    Bilingual (English + Korean) mechanistic interpretation of a simulation.
+
+    With an API key, Gemini 4 Argon writes the narrative plus structured numeric claims; the
+    deterministic checker verifies them and re-prompts Argon with the exact mismatches
+    (up to ARGON_MAX_ATTEMPTS within ARGON_LOOP_BUDGET_S). If Argon is unavailable or never
+    passes, the deterministic template narrative is used and labelled as such.
     """
     t0 = time.time()
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -536,54 +882,116 @@ def analyze_simulation_with_argon(
         ),
         "clinical_pearls_ko": ko_bundle.get("clinical_pearls_ko", ""),
         "requires_human_verification": True,
-        "model_used": "gemini-4-argon (Physics + Curriculum Hybrid Engine)",
         "thinking_level": thinking_level,
+        "claims": _expected_claims(sim_result),
     }
 
+    attempts: List[Dict[str, Any]] = []
+    accepted: Optional[Dict[str, Any]] = None
+    accepted_verification: Optional[Dict[str, Any]] = None
+    argon_called = False
+    argon_error: Optional[str] = None
+    budget_exhausted = False
+
     if api_key:
+        deadline = t0 + ARGON_LOOP_BUDGET_S
+        base_prompt = _build_argon_prompt(sim_result, patient, regimen, primary_organ_data)
+        feedback = ""
+        client = None
         try:
             from google import genai
-            client = genai.Client(api_key=api_key)
-            prompt = f"""You are Gemini 4 Argon acting as a Senior Quantitative Systems Pharmacologist and Toxicologist.
-Cross-reference the 7-module Toxicology Lecture Curriculum below with the live 2-Compartment PK/PD and 3D thermodynamic simulation data.
+            from google.genai import types as genai_types
 
-{TOXICOLOGY_CURRICULUM_CONTEXT}
-
-[LIVE SIMULATION DATA]
-- Drug: {sim_result['drug_name']} ({sim_result['generic_class']})
-- Regimen: {regimen.dose_mg} mg via {regimen.route}, {regimen.num_doses} dose(s) q{regimen.interval_h}h
-- Patient: {patient.age}yo {patient.sex}, {patient.weight_kg} kg, SCr={patient.serum_creatinine_mg_dl} mg/dL -> CrCl={sim_result['patient_computed']['crcl_ml_min']} mL/min
-- PGx Profile: CYP2E1={patient.cyp2e1_phenotype}, CYP3A4={patient.cyp3a4_phenotype}, hERG={patient.kcnh2_herg_variant}, G6PD={patient.g6pd_status}
-- PK Metrics: Cmax={sim_result['pk_summary']['cmax_mg_l']} mg/L, Tmax={sim_result['pk_summary']['tmax_h']} h, AUC={sim_result['pk_summary']['auc_0_t_mg_h_l']} mg*h/L, t1/2={sim_result['patient_computed']['t_half_eff_h']} h, Min Hepatic GSH={sim_result['pk_summary']['min_hepatic_gsh_pct']}%
-- Thermodynamic Binding ({sim_result['structure_3d']['target_protein']}): DeltaG={sim_result['thermodynamics']['delta_g_kcal_mol']} kcal/mol, Kd={sim_result['thermodynamics']['kd_um']} uM
-- Primary Alert Organ: {primary_organ_data['name']} (Peak Risk={primary_organ_data['peak_risk_pct']}%, Peak Conc={primary_organ_data['peak_conc_mg_l']} mg/L)
-
-Return ONLY valid JSON with keys:
-- "executive_summary": concise 3-sentence quantitative interpretation in English
-- "executive_summary_ko": concise 3-sentence quantitative interpretation in Korean
-- "molecular_cascade_4step": object with keys "step1_delivery", "step2_reaction", "step3_cellular_dysfunction", "step4_disrepair_biomarkers"
-- "antidote_protocol": specific antidote, dose adjustment, or hemodialysis recommendation
-"""
-            interaction = client.interactions.create(
-                model="gemini-4-argon",
-                input=prompt,
-                generation_config={"thinking_level": thinking_level},
+            client = genai.Client(
+                api_key=api_key,
+                http_options=genai_types.HttpOptions(timeout=int(ARGON_HTTP_TIMEOUT_S * 1000)),
             )
-            raw_text = getattr(interaction, "output_text", "") or ""
-            json_match = re.search(r"\{.*\}", raw_text, re.DOTALL)
-            if json_match:
-                parsed = json.loads(json_match.group(0))
-                for k in ["executive_summary", "executive_summary_ko", "molecular_cascade_4step", "antidote_protocol"]:
-                    if k in parsed and parsed[k]:
-                        baseline_analysis[k] = parsed[k]
-                baseline_analysis["model_used"] = "gemini-4-argon (Live Interactions API)"
         except Exception as exc:
-            baseline_analysis["api_note"] = f"Verified deterministic fallback active ({type(exc).__name__})"
+            argon_error = type(exc).__name__
 
-    verification = _verify_simulation_claims(sim_result, baseline_analysis)
-    baseline_analysis["verification_loop"] = verification
-    baseline_analysis["latency_ms"] = round((time.time() - t0) * 1000.0, 1)
-    return baseline_analysis
+        for iteration in range(1, ARGON_MAX_ATTEMPTS + 1):
+            if client is None:
+                break
+            remaining = deadline - time.time()
+            if remaining < ARGON_MIN_ATTEMPT_S:
+                budget_exhausted = True
+                break
+            try:
+                interaction = client.interactions.create(
+                    model=ARGON_MODEL_ID,
+                    input=base_prompt + feedback,
+                    generation_config={"thinking_level": thinking_level},
+                    timeout=min(remaining, ARGON_HTTP_TIMEOUT_S),
+                )
+            except Exception as exc:
+                argon_error = type(exc).__name__
+                break
+            argon_called = True
+            parsed = _parse_argon_json(getattr(interaction, "output_text", "") or "")
+            if parsed is None:
+                attempts.append({"iteration": iteration, "source": "argon", "passed": False, "failed_check_ids": ["ARGON_JSON_PARSE"]})
+                feedback = (
+                    f"\n\n[CORRECTION REQUIRED — attempt {iteration} rejected]\n"
+                    "Your previous reply was not a valid JSON object. Return ONLY the JSON object described above."
+                )
+                continue
+
+            candidate = dict(baseline_analysis)
+            for key in ARGON_NARRATIVE_KEYS:
+                if parsed.get(key):
+                    candidate[key] = parsed[key]
+            candidate["claims"] = parsed.get("claims")
+            verification = _verify_simulation_claims(sim_result, candidate)
+            failed_ids = [c["check_id"] for c in verification["checks"] if not c["passed"]]
+            attempts.append({
+                "iteration": iteration,
+                "source": "argon",
+                "passed": verification["all_passed"],
+                "failed_check_ids": failed_ids,
+            })
+            claim_check = next(c for c in verification["checks"] if c["check_id"] == "ARGON_CLAIM_CONSISTENCY")
+            if claim_check["passed"]:
+                # Remaining failures (if any) are simulation-side and reported as-is; retrying Argon cannot fix them.
+                accepted, accepted_verification = candidate, verification
+                break
+            feedback = _build_correction_feedback(iteration, claim_check["issues"], sim_result)
+
+    if accepted is not None:
+        analysis = accepted
+        verification = accepted_verification
+        analysis["model_used"] = f"{ARGON_MODEL_ID} (Interactions API)"
+        analysis["narrative_source"] = "argon"
+        analysis["argon_fallback_reason"] = None
+    else:
+        analysis = baseline_analysis
+        if not api_key:
+            reason = "Argon not called: no API key"
+        elif argon_called:
+            n_argon = sum(1 for a in attempts if a["source"] == "argon")
+            reason = f"Argon output failed claim verification in {n_argon} attempt(s)"
+            if argon_error:
+                reason += f"; last call failed: {argon_error}"
+            elif budget_exhausted:
+                reason += "; time budget exhausted"
+        else:
+            reason = f"Argon call failed: {argon_error or 'TimeBudgetExhausted'}"
+        analysis["model_used"] = f"Deterministic template ({reason})"
+        analysis["narrative_source"] = "deterministic_template"
+        analysis["argon_fallback_reason"] = reason
+        verification = _verify_simulation_claims(sim_result, analysis)
+        attempts.append({
+            "iteration": len(attempts) + 1,
+            "source": "template",
+            "passed": verification["all_passed"],
+            "failed_check_ids": [c["check_id"] for c in verification["checks"] if not c["passed"]],
+        })
+
+    verification["iterations"] = len(attempts)
+    verification["attempts"] = attempts
+    analysis["argon_called"] = argon_called
+    analysis["verification_loop"] = verification
+    analysis["latency_ms"] = round((time.time() - t0) * 1000.0, 1)
+    return analysis
 
 
 LECTURE_NOVEL_TEMPLATES: Dict[str, Dict[str, Any]] = {
@@ -658,15 +1066,16 @@ def approximate_novel_drug_af3(
     clean_key = re.sub(r"[^a-z0-9]", "", molecule_name.lower())
     matched_template = None
     for k, tpl in LECTURE_NOVEL_TEMPLATES.items():
-        if k in clean_key or clean_key in k:
+        if clean_key and (k in clean_key or clean_key in k):
             matched_template = tpl
             break
 
     s = smiles.strip() if smiles.strip() else (matched_template["smiles"] if matched_template else "CC(=O)OC1=CC=CC=C1C(=O)O")
-    heavy_atoms = len(re.findall(r"[CNOSPFClBrI]|Pt", s))
-    n_count = s.upper().count("N")
-    o_count = s.upper().count("O")
-    halogens = s.count("Cl") + s.count("F") + s.count("Br") + s.count("I")
+    atom_counts = smiles_atom_counts(s)
+    heavy_atoms = atom_counts["heavy_atoms"]
+    n_count = atom_counts["n_count"]
+    o_count = atom_counts["o_count"]
+    halogens = atom_counts["halogens"]
 
     if matched_template:
         mw = matched_template["mw_g_mol"]
@@ -717,37 +1126,44 @@ def approximate_novel_drug_af3(
         display_name = f"{molecule_name} (AlphaFold 3 De Novo Profiled)"
         korean_name = f"{molecule_name} (AF3 구조예측 기반 근사 프로파일)"
 
-    # Query Live Google DeepMind / EMBL-EBI AlphaFold DB REST API for real protein metadata & pLDDT
+    # Real AlphaFold DB metadata (live EBI API when online, else the bundled AlphaFold DB snapshot).
     live_af_meta = fetch_live_alphafold_ebi_metadata(uniprot_id)
-    real_plddt = float(live_af_meta["globalMetricValue"]) if live_af_meta and live_af_meta.get("globalMetricValue") else 91.6
+    local_entry = _local_alphafold_entry(uniprot_id)
+    if live_af_meta and live_af_meta.get("globalMetricValue") is not None:
+        plddt: Optional[float] = round(float(live_af_meta["globalMetricValue"]), 1)
+        plddt_source = "alphafold_db_live"
+    elif local_entry and local_entry.get("mean_plddt") is not None:
+        plddt = round(float(local_entry["mean_plddt"]), 1)
+        plddt_source = "alphafold_db_local_snapshot"
+    else:
+        plddt = None
+        plddt_source = "unavailable"
 
+    sequence, sequence_source = resolve_target_sequence(uniprot_id)
     af3_job_json = {
         "name": f"pharmacotwin_af3_{clean_key or 'novel_ligand'}",
         "modelSeeds": [20261016],
         "sequences": [
-            {
-                "proteinChain": {
-                    "id": "A",
-                    "uniprotAccession": uniprot_id,
-                    "description": target_prot,
-                    "sequence": "MVLSEGEWQLVLHVWAKVEADVAGHGQDILIRLFKSHPETLEKFDRFKHLKTEAEMKASEDLKKHGVTVLTALGAILKKKGHHEAELKPLAQSHATKHKIPIKYLEFISEAIIHVLHSRHPGDFGADAQGAMNKALELFRKDIAAKYKELGYQG",
-                }
-            },
-            {
-                "ligand": {
-                    "id": "L",
-                    "smiles": s,
-                }
-            },
+            {"protein": {"id": "A", "sequence": sequence}},
+            {"ligand": {"id": "L", "smiles": s}},
         ],
-        "alphafold_db_live_reference": live_af_meta or {
-            "entryId": f"AF-{uniprot_id}-F1",
-            "uniprotAccession": uniprot_id,
-            "globalMetricValue": real_plddt,
-            "source": "Embedded AlphaFold Structure Reference",
-        },
         "dialect": "alphafold3",
         "version": 1,
+    }
+    af3_job_metadata = {
+        "af3_executed": False,
+        "note": "AlphaFold 3 input job only; it is not executed here. Submit it to AlphaFold 3 to obtain a co-folded structure and ipTM.",
+        "uniprot": uniprot_id,
+        "target_protein": target_prot,
+        "sequence_source": sequence_source,
+        "sequence_length": len(sequence) if sequence else 0,
+        "alphafold_db_reference": live_af_meta or {
+            "entryId": f"AF-{uniprot_id}-F1",
+            "uniprotAccession": uniprot_id,
+            "globalMetricValue": plddt,
+            "pdbUrl": (local_entry or {}).get("external_pdb_url", f"https://alphafold.ebi.ac.uk/entry/{uniprot_id}"),
+            "source": "Bundled AlphaFold DB snapshot" if local_entry else "AlphaFold DB entry (not fetched)",
+        },
     }
 
     pocket_contacts = [
@@ -837,12 +1253,15 @@ def approximate_novel_drug_af3(
         "structure_3d": {
             "target_protein": target_prot,
             "pdb_id": pdb_id,
-            "af3_plddt": round(real_plddt, 1),
-            "af3_iptm": 0.89,
+            "af3_plddt": plddt,
+            "af3_plddt_source": plddt_source,
+            "af3_iptm": None,
             "buried_area_a2": buried_area,
             "hbond_count": hbonds,
             "rotatable_bonds": rotors,
             "pocket_contacts": pocket_contacts,
+            "pocket_contacts_source": "template",
+            "method": "heuristic_estimate",
             "pdb_block": _generate_pocket_pdb_block(
                 receptor_name=target_prot[:40].upper(),
                 pdb_id=pdb_id,
@@ -874,19 +1293,32 @@ def approximate_novel_drug_af3(
     argon_analysis = analyze_simulation_with_argon(sim_output, patient, regimen, thinking_level="high")
     argon_analysis["clinical_pearls_ko"] = mech_ko
 
+    heuristic_note = (
+        "Heuristic structure-informed estimate: pocket contacts come from a fixed template and PK/PD "
+        "parameters from SMILES descriptors (or lecture template values). AlphaFold 3 was not executed."
+    )
     return {
         "af3_job_spec": af3_job_json,
+        "af3_job_metadata": af3_job_metadata,
+        "af_ebi_live": live_af_meta or {},
         "approximated_drug_profile": {
             "name": display_name,
             "korean_name": korean_name,
             "smiles": s,
             "mw_g_mol": mw,
             "logp": logp,
+            "method": "heuristic_estimate",
+            "method_note": heuristic_note,
+            "parameter_source": "lecture_template" if matched_template else "smiles_descriptor_heuristic",
+            "smiles_atom_counts": atom_counts,
+            "pocket_contacts_source": "template",
             "predicted_pk": synthesized_drug["pk"],
             "predicted_thermodynamics": thermo,
             "af3_confidence": {
-                "plddt": synthesized_drug["structure_3d"]["af3_plddt"],
-                "iptm": synthesized_drug["structure_3d"]["af3_iptm"],
+                "plddt": plddt,
+                "plddt_source": plddt_source,
+                "iptm": None,
+                "iptm_note": "Not available: AlphaFold 3 was not executed",
                 "live_ebi_metadata": live_af_meta,
             },
         },
