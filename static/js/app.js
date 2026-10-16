@@ -62,14 +62,94 @@ const ORGAN_LABELS_KO = {
 };
 
 const ORGAN_DEFAULT_PDB = {
-  liver: { pdb: "1Z10", name: "CYP2E1 Monooxygenase", uniprot: "P05181", afId: "AF-P05181-F1", plddt: 92.6, dg: -7.8 },
-  kidney: { pdb: "2FYL", name: "Megalin / Cubilin Renal Receptor", uniprot: "P98164", afId: "AF-P98164-F1", plddt: 88.4, dg: -6.9 },
-  heart: { pdb: "5VA1", name: "hERG (KCNH2) Cardiac K+ Channel", uniprot: "Q12809", afId: "AF-Q12809-F1", plddt: 89.2, dg: -9.1 },
-  brain: { pdb: "6CM4", name: "Dopamine D2 Receptor (CNS)", uniprot: "P14416", afId: "AF-P14416-F1", plddt: 91.0, dg: -8.9 },
-  lungs: { pdb: "1O8A", name: "Pulmonary NADPH Oxidase / ACE", uniprot: "P12821", afId: "AF-P12821-F1", plddt: 93.4, dg: -7.4 },
-  blood: { pdb: "2BH9", name: "Glucose-6-Phosphate Dehydrogenase (G6PD)", uniprot: "P11413", afId: "AF-P11413-F1", plddt: 94.8, dg: -7.9 },
-  ocular: { pdb: "1U19", name: "Retinal Rhodopsin / Melanin Complex", uniprot: "P08100", afId: "AF-P08100-F1", plddt: 92.1, dg: -7.2 },
-  gi: { pdb: "3G5U", name: "Intestinal P-gp (ABCB1) Efflux Pump", uniprot: "P08183", afId: "AF-P08183-F1", plddt: 87.9, dg: -6.8 },
+  liver: {
+    pdb: "AF-P05181-F1",
+    rcsb: "1Z10",
+    name: "CYP2E1 Monooxygenase (493 aa · AlphaFold DB v6)",
+    uniprot: "P05181",
+    afId: "AF-P05181-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/liver_P05181.pdb",
+    residues: 493,
+    plddt: 96.13,
+    dg: -7.8,
+  },
+  kidney: {
+    pdb: "AF-O15244-F1",
+    rcsb: "2FYL",
+    name: "SLC22A2 / OCT2 Renal Transporter (555 aa · AlphaFold DB v6)",
+    uniprot: "O15244",
+    afId: "AF-O15244-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/kidney_O15244.pdb",
+    residues: 555,
+    plddt: 83.03,
+    dg: -6.9,
+  },
+  heart: {
+    pdb: "AF-Q12809-F1",
+    rcsb: "5VA1",
+    name: "hERG / KCNH2 Cardiac K+ Channel (1159 aa · AlphaFold DB v6)",
+    uniprot: "Q12809",
+    afId: "AF-Q12809-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/heart_Q12809.pdb",
+    residues: 1159,
+    plddt: 62.75,
+    dg: -9.1,
+  },
+  brain: {
+    pdb: "AF-P14416-F1",
+    rcsb: "6CM4",
+    name: "DRD2 Dopamine D2 Receptor (443 aa · AlphaFold DB v6)",
+    uniprot: "P14416",
+    afId: "AF-P14416-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/brain_P14416.pdb",
+    residues: 443,
+    plddt: 72.45,
+    dg: -8.9,
+  },
+  lungs: {
+    pdb: "AF-P12821-F1",
+    rcsb: "1O8A",
+    name: "Pulmonary ACE Metalloprotease (1306 aa · AlphaFold DB v6)",
+    uniprot: "P12821",
+    afId: "AF-P12821-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/lungs_P12821.pdb",
+    residues: 1306,
+    plddt: 90.94,
+    dg: -7.4,
+  },
+  blood: {
+    pdb: "AF-P11413-F1",
+    rcsb: "2BH9",
+    name: "G6PD Dehydrogenase (515 aa · AlphaFold DB v6)",
+    uniprot: "P11413",
+    afId: "AF-P11413-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/blood_P11413.pdb",
+    residues: 515,
+    plddt: 94.40,
+    dg: -7.9,
+  },
+  ocular: {
+    pdb: "AF-P08100-F1",
+    rcsb: "1U19",
+    name: "Retinal Rhodopsin RHO (348 aa · AlphaFold DB v6)",
+    uniprot: "P08100",
+    afId: "AF-P08100-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/ocular_P08100.pdb",
+    residues: 348,
+    plddt: 88.74,
+    dg: -7.2,
+  },
+  gi: {
+    pdb: "AF-P08183-F1",
+    rcsb: "3G5U",
+    name: "Intestinal P-gp / ABCB1 Efflux Pump (1280 aa · AlphaFold DB v6)",
+    uniprot: "P08183",
+    afId: "AF-P08183-F1-v6",
+    afPdbUrl: "/static/assets/alphafold_pdb/gi_P08183.pdb",
+    residues: 1280,
+    plddt: 84.59,
+    dg: -6.8,
+  },
 };
 
 const ORGAN_SHORT_KO = {
@@ -937,8 +1017,8 @@ function updateSelectedOrganDetail(organKey) {
     ? (info.mechanism_ko || info.mechanism)
     : info.mechanism;
 
-  // Load 3D Receptor PDB in 3Dmol Viewer
-  loadReceptor3DPDB(recInfo.pdb, recInfo.name);
+  // Load Real AlphaFold DB 3D Receptor PDB in 3Dmol Viewer
+  loadReceptor3DPDB(recInfo.pdb, recInfo.name, organKey);
   fetchAndDisplayLiveAlphaFoldEbi(organKey);
 }
 
@@ -1098,43 +1178,94 @@ async function loadDrug3DMolecule(drugKey, drugObj) {
   if (tagEl) tagEl.textContent = `${drugObj.name.split(" ")[0]} 3D Structure`;
 }
 
-function loadReceptor3DPDB(pdbId, targetDescription) {
+async function loadReceptor3DPDB(pdbId, targetDescription, organKey = null) {
   if (!AppState.receptorViewer3D || !pdbId) return;
-  document.getElementById("receptor-pdb-badge").textContent = `PDB: ${pdbId}`;
-  document.getElementById("receptor-caption").innerHTML = `<strong>Target:</strong> ${targetDescription}`;
+  const orgKey = organKey || AppState.selectedOrgan || "liver";
+  const recInfo = ORGAN_DEFAULT_PDB[orgKey] || ORGAN_DEFAULT_PDB.liver;
 
-  if (AppState.currentPdbId === pdbId) return;
-  AppState.currentPdbId = pdbId;
+  document.getElementById("receptor-pdb-badge").textContent = `${recInfo.pdb} (pLDDT ${recInfo.plddt})`;
+  document.getElementById("receptor-caption").innerHTML = `<strong>AlphaFold DB v6:</strong> ${targetDescription}`;
+
+  if (AppState.currentPdbId === recInfo.pdb) return;
+  AppState.currentPdbId = recInfo.pdb;
 
   const tagEl = document.getElementById("receptor-overlay-tag");
-  if (tagEl) tagEl.textContent = `Fetching RCSB PDB ${pdbId}...`;
+  if (tagEl) tagEl.textContent = `Loading AlphaFold DB ${recInfo.pdb}...`;
 
   AppState.receptorViewer3D.clear();
-  $3Dmol.download(`pdb:${pdbId}`, AppState.receptorViewer3D, {}, () => {
+
+  // 1. Load Real Local AlphaFold DB v6 .pdb Structure directly
+  if (recInfo.afPdbUrl) {
+    try {
+      const res = await fetch(recInfo.afPdbUrl);
+      if (res.ok) {
+        const pdbText = await res.text();
+        AppState.receptorViewer3D.addModel(pdbText, "pdb");
+        applyReceptorStyle(AppState.currentMolStyle);
+        AppState.receptorViewer3D.zoomTo();
+        AppState.receptorViewer3D.render();
+        AppState.receptorViewer3D.spin("y", 0.35);
+        if (tagEl) {
+          tagEl.textContent = `${recInfo.afId} · ${recInfo.residues} aa · pLDDT Colored`;
+        }
+        return;
+      }
+    } catch (e) {
+      // Fallback to RCSB below if local fetch fails
+    }
+  }
+
+  // 2. Fallback to RCSB PDB download
+  const fallbackPdb = recInfo.rcsb || "1Z10";
+  $3Dmol.download(`pdb:${fallbackPdb}`, AppState.receptorViewer3D, {}, () => {
     applyReceptorStyle(AppState.currentMolStyle);
     AppState.receptorViewer3D.zoomTo();
     AppState.receptorViewer3D.render();
     AppState.receptorViewer3D.spin("y", 0.35);
-    if (tagEl) tagEl.textContent = `${pdbId} · Interactive 3D Receptor`;
+    if (tagEl) tagEl.textContent = `${fallbackPdb} · Interactive 3D Receptor`;
   });
 }
 
 function applyReceptorStyle(styleMode) {
   if (!AppState.receptorViewer3D) return;
+  AppState.receptorViewer3D.removeAllSurfaces();
   AppState.receptorViewer3D.setStyle({}, {});
 
+  // Official AlphaFold pLDDT confidence coloring from PDB B-factor (atom.b)
+  const afPlddtColor = function (atom) {
+    const b = atom.b || 0;
+    if (b >= 90) return "#0053d6"; // Very high (pLDDT >= 90)
+    if (b >= 70) return "#65cbf3"; // Confident (70 - 90)
+    if (b >= 50) return "#ffdb13"; // Low (50 - 70)
+    return "#ff7d45";              // Very low (< 50)
+  };
+
   if (styleMode === "cartoon") {
-    AppState.receptorViewer3D.setStyle({}, { cartoon: { color: "spectrum" } });
-    AppState.receptorViewer3D.setStyle({ hetflag: true }, { stick: { radius: 0.25, colorscheme: "greenCarbon" } });
+    AppState.receptorViewer3D.setStyle({}, { cartoon: { colorfunc: afPlddtColor } });
+    // Highlight catalytic pocket center residues (resi 180-210) as active binding site sticks
+    AppState.receptorViewer3D.setStyle(
+      { resi: ["180-205"] },
+      {
+        cartoon: { colorfunc: afPlddtColor },
+        stick: { radius: 0.22, colorscheme: "greenCarbon" },
+      }
+    );
   } else if (styleMode === "surface") {
-    AppState.receptorViewer3D.setStyle({}, { cartoon: { color: "spectrum", opacity: 0.65 } });
-    AppState.receptorViewer3D.addSurface($3Dmol.SurfaceType.VDW, { opacity: 0.55, color: "white" }, {});
+    AppState.receptorViewer3D.setStyle({}, { cartoon: { colorfunc: afPlddtColor, opacity: 0.7 } });
+    AppState.receptorViewer3D.addSurface(
+      $3Dmol.SurfaceType.VDW,
+      { opacity: 0.52, color: "#38bdf8" },
+      {}
+    );
   } else if (styleMode === "stick") {
-    AppState.receptorViewer3D.setStyle({}, { cartoon: { color: "gray", opacity: 0.35 } });
-    AppState.receptorViewer3D.setStyle({ hetflag: true }, {
-      stick: { radius: 0.3, colorscheme: "magentaCarbon" },
-      sphere: { scale: 0.35, colorscheme: "magentaCarbon" },
-    });
+    AppState.receptorViewer3D.setStyle({}, { cartoon: { colorfunc: afPlddtColor, opacity: 0.28 } });
+    AppState.receptorViewer3D.setStyle(
+      { resi: ["165-225"] },
+      {
+        stick: { radius: 0.28, colorscheme: "magentaCarbon" },
+        sphere: { scale: 0.32, colorscheme: "magentaCarbon" },
+      }
+    );
   }
   AppState.receptorViewer3D.render();
 }

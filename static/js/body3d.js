@@ -53,6 +53,8 @@ class PharmacoBody3D {
 
     this.activeAdminAnim = null;
     this.currentProteinSpec = null;
+    this.alphafoldStructures = {};
+    this.proteinBackboneGroup = new THREE.Group();
 
     this._initScene();
     this._createCosmicLabEnvironment();
@@ -61,6 +63,7 @@ class PharmacoBody3D {
     this._buildPBPKPipeCircuit();
     this._buildCirculatingParticles();
     this._build3DAlphaFoldProteinConstruct();
+    this._loadAlphaFoldStructures();
     this._bindInteractions();
     this._animate();
   }
@@ -709,27 +712,62 @@ class PharmacoBody3D {
   }
 
   /**
+   * Load Pre-Parsed Real AlphaFold DB v6 3D C-alpha Coordinates & per-residue pLDDT
+   * for all 8 organ toxicology targets (CYP2E1, hERG, G6PD, DRD2, ACE, RHO, ABCB1, OCT2)
+   */
+  async _loadAlphaFoldStructures() {
+    try {
+      const res = await fetch("/static/assets/alphafold_pdb/alphafold_structures.json");
+      if (res.ok) {
+        this.alphafoldStructures = await res.json();
+        const activeOrgan = this.selectedOrgan || "liver";
+        this._rebuildRealAlphaFoldBackbone(activeOrgan);
+      }
+    } catch (e) {
+      // Fallback initial procedural ribbon remains if offline
+    }
+  }
+
+  /**
+   * Official AlphaFold pLDDT Confidence Band -> RGB [0..1]
+   * >=90: Very High (Royal/Holo Blue), 70-90: Confident (Sky Cyan),
+   * 50-70: Low (Yellow), <50: Disordered (Orange)
+   */
+  _plddtToRgb(plddt) {
+    if (plddt >= 90) return [0.15, 0.52, 1.0];   // #2684ff (AF Very High)
+    if (plddt >= 70) return [0.40, 0.80, 0.95];  // #65cbf3 (AF Confident)
+    if (plddt >= 50) return [1.0, 0.86, 0.07];   // #ffdb13 (AF Low)
+    return [1.0, 0.49, 0.27];                    // #ff7d45 (AF Very Low)
+  }
+
+  /**
    * Build 3D Holographic AlphaFold Target Protein Complex that materializes in 3D space
    * right next to the zoomed-in organ!
    */
   _build3DAlphaFoldProteinConstruct() {
-    this.proteinHologramGroup.innerHTML = "";
+    while (this.proteinHologramGroup.children.length > 0) {
+      this.proteinHologramGroup.remove(this.proteinHologramGroup.children[0]);
+    }
 
     // Outer Holo Containment Sphere + Rotating Gimbal Rings (like sample_UI.html core)
     const cageRing1 = new THREE.Mesh(
-      new THREE.RingGeometry(0.46, 0.48, 64),
+      new THREE.RingGeometry(0.50, 0.518, 64),
       new THREE.MeshBasicMaterial({ color: 0x22d3ee, side: THREE.DoubleSide, transparent: true, opacity: 0.65 })
     );
     this.proteinHologramGroup.add(cageRing1);
 
     const cageRing2 = new THREE.Mesh(
-      new THREE.RingGeometry(0.52, 0.535, 64),
+      new THREE.RingGeometry(0.55, 0.565, 64),
       new THREE.MeshBasicMaterial({ color: 0xa855f7, side: THREE.DoubleSide, transparent: true, opacity: 0.5 })
     );
     cageRing2.rotation.y = Math.PI / 3;
     this.proteinHologramGroup.add(cageRing2);
 
-    // 3D Coiled Alpha-Helices Ribbon (Representing AlphaFold DB Receptor Backbone)
+    // Group holding the actual 3D AlphaFold C-alpha ribbon + residue dot cloud
+    this.proteinBackboneGroup = new THREE.Group();
+    this.proteinHologramGroup.add(this.proteinBackboneGroup);
+
+    // Initial fallback helix until alphafold_structures.json finishes loading
     const helixPts = [];
     for (let i = 0; i < 160; i++) {
       const t = (i / 160) * Math.PI * 6;
@@ -739,7 +777,7 @@ class PharmacoBody3D {
       helixPts.push(new THREE.Vector3(hx, hy, hz));
     }
     const helixCurve = new THREE.CatmullRomCurve3(helixPts);
-    const helixGeo = new THREE.TubeGeometry(helixCurve, 120, 0.024, 8, false);
+    const helixGeo = new THREE.TubeGeometry(helixCurve, 120, 0.022, 8, false);
     const helixMat = new THREE.MeshStandardMaterial({
       color: 0x22d3ee,
       emissive: 0x0ea5e9,
@@ -747,16 +785,16 @@ class PharmacoBody3D {
       roughness: 0.2,
     });
     this.proteinHelixMesh = new THREE.Mesh(helixGeo, helixMat);
-    this.proteinHologramGroup.add(this.proteinHelixMesh);
+    this.proteinBackboneGroup.add(this.proteinHelixMesh);
 
     // Co-Folded Drug Ligand Atoms inside the Active Pocket (Bright Lime/Magenta Spheres)
     this.ligandCluster = new THREE.Group();
     const atomOffsets = [
-      [0, 0, 0, 0xb6ff3c, 0.055],
-      [0.06, 0.04, 0.02, 0xb6ff3c, 0.045],
-      [-0.06, -0.03, 0.03, 0xff2bd1, 0.05],
-      [0.03, -0.06, -0.04, 0x22d3ee, 0.045],
-      [-0.04, 0.06, -0.03, 0xfbbf24, 0.048],
+      [0, 0, 0, 0xb6ff3c, 0.052],
+      [0.055, 0.035, 0.02, 0xb6ff3c, 0.042],
+      [-0.055, -0.028, 0.028, 0xff2bd1, 0.046],
+      [0.028, -0.055, -0.035, 0x22d3ee, 0.042],
+      [-0.035, 0.055, -0.028, 0xfbbf24, 0.044],
     ];
     atomOffsets.forEach(([ax, ay, az, col, rad]) => {
       const m = new THREE.Mesh(
@@ -770,27 +808,147 @@ class PharmacoBody3D {
 
     // Floating AlphaFold Target Sprite Label above the 3D Protein Construct
     this.proteinTitleSprite = this._createHoloLabelSprite(
-      "ALPHAFOLD 3 POCKET",
-      "타겟 수용체 결합",
-      "CYP2E1 · ΔG = -7.8 kcal/mol",
+      "ALPHAFOLD DB v6",
+      "CYP2E1 (AF-P05181-F1)",
+      "493 aa · Mean pLDDT 96.1",
       "#b6ff3c"
     );
-    this.proteinTitleSprite.position.set(0, 0.68, 0);
-    this.proteinTitleSprite.scale.set(1.35, 0.36, 1);
+    this.proteinTitleSprite.position.set(0, 0.72, 0);
+    this.proteinTitleSprite.scale.set(1.45, 0.38, 1);
     this.proteinHologramGroup.add(this.proteinTitleSprite);
   }
 
   /**
-   * Update the 3D AlphaFold Protein Hologram label & colors from simulation data
+   * Rebuild the 3D Protein Mesh in Three.js using REAL AlphaFold DB C-alpha coordinates
+   * and per-residue pLDDT confidence scores for the specified organ!
+   */
+  _rebuildRealAlphaFoldBackbone(organKey) {
+    const af = this.alphafoldStructures && this.alphafoldStructures[organKey];
+    if (!af || !af.backbone_ca || af.backbone_ca.length < 10) return;
+
+    while (this.proteinBackboneGroup.children.length > 0) {
+      const child = this.proteinBackboneGroup.children[0];
+      if (child.geometry) child.geometry.dispose();
+      this.proteinBackboneGroup.remove(child);
+    }
+
+    const caList = af.backbone_ca; // [[x, y, z, plddt], ...]
+    const vecPts = [];
+    const pointPositions = new Float32Array(caList.length * 3);
+    const pointColors = new Float32Array(caList.length * 3);
+
+    for (let i = 0; i < caList.length; i++) {
+      const [rx, ry, rz, plddt] = caList[i];
+      // Scale to fit nicely inside the 0.50-radius holographic gimbal sphere
+      const sx = rx * 0.96;
+      const sy = ry * 0.96;
+      const sz = rz * 0.96;
+      vecPts.push(new THREE.Vector3(sx, sy, sz));
+
+      pointPositions[i * 3] = sx;
+      pointPositions[i * 3 + 1] = sy;
+      pointPositions[i * 3 + 2] = sz;
+
+      const [r, g, b] = this._plddtToRgb(plddt);
+      pointColors[i * 3] = r;
+      pointColors[i * 3 + 1] = g;
+      pointColors[i * 3 + 2] = b;
+    }
+
+    // 1. 3D Vertex-Colored Smooth AlphaFold C-alpha Backbone Ribbon Tube
+    const curve = new THREE.CatmullRomCurve3(vecPts);
+    const tubularSegments = Math.min(360, caList.length * 2);
+    const radialSegments = 6;
+    const tubeGeo = new THREE.TubeGeometry(curve, tubularSegments, 0.013, radialSegments, false);
+
+    const posCount = tubeGeo.attributes.position.count;
+    const tubeColors = new Float32Array(posCount * 3);
+    const ringStride = radialSegments + 1;
+
+    for (let v = 0; v < posCount; v++) {
+      const segIdx = Math.floor(v / ringStride);
+      const frac = segIdx / Math.max(1, tubularSegments);
+      const caIdx = Math.min(caList.length - 1, Math.floor(frac * caList.length));
+      const plddt = caList[caIdx][3];
+      const [r, g, b] = this._plddtToRgb(plddt);
+      tubeColors[v * 3] = r;
+      tubeColors[v * 3 + 1] = g;
+      tubeColors[v * 3 + 2] = b;
+    }
+    tubeGeo.setAttribute("color", new THREE.BufferAttribute(tubeColors, 3));
+
+    const tubeMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.25,
+      metalness: 0.15,
+      transparent: true,
+      opacity: 0.92,
+    });
+    const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
+    this.proteinBackboneGroup.add(tubeMesh);
+
+    // 2. Glowing C-alpha Amino Acid Residue Nodes colored by AlphaFold pLDDT
+    const resGeo = new THREE.BufferGeometry();
+    resGeo.setAttribute("position", new THREE.BufferAttribute(pointPositions, 3));
+    resGeo.setAttribute("color", new THREE.BufferAttribute(pointColors, 3));
+    const resMat = new THREE.PointsMaterial({
+      size: 0.036,
+      map: this._createDotTexture(),
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const resPoints = new THREE.Points(resGeo, resMat);
+    this.proteinBackboneGroup.add(resPoints);
+
+    // Update Floating Label with Real AlphaFold Entry Metadata
+    if (this.proteinTitleSprite) {
+      this.proteinHologramGroup.remove(this.proteinTitleSprite);
+    }
+    this.proteinTitleSprite = this._createHoloLabelSprite(
+      `${af.entry_id} (${af.gene})`,
+      af.name,
+      `${af.residue_count} aa · Real AFDB pLDDT ${af.mean_plddt}`,
+      "#b6ff3c"
+    );
+    this.proteinTitleSprite.position.set(0, 0.72, 0);
+    this.proteinTitleSprite.scale.set(1.48, 0.38, 1);
+    this.proteinHologramGroup.add(this.proteinTitleSprite);
+  }
+
+  /**
+   * Update the 3D AlphaFold Protein Hologram label & rebuild real 3D structure for the organ
    */
   updateAlphaFoldTargetHologram(arg1, arg2, arg3) {
     if (!arg1) return;
+    if (typeof arg1 === "string") {
+      const organKey = arg1;
+      const af = this.alphafoldStructures && this.alphafoldStructures[organKey];
+      this._rebuildRealAlphaFoldBackbone(organKey);
+      if (af) {
+        if (this.proteinTitleSprite) {
+          this.proteinHologramGroup.remove(this.proteinTitleSprite);
+        }
+        this.proteinTitleSprite = this._createHoloLabelSprite(
+          `${af.entry_id} (${af.gene})`,
+          af.name,
+          `${af.residue_count} aa · pLDDT ${af.mean_plddt} · Risk ${(arg3 || 0).toFixed(0)}%`,
+          "#b6ff3c"
+        );
+        this.proteinTitleSprite.position.set(0, 0.72, 0);
+        this.proteinTitleSprite.scale.set(1.48, 0.38, 1);
+        this.proteinHologramGroup.add(this.proteinTitleSprite);
+        return;
+      }
+    }
+
     let titleText = "AF3 TARGET";
     let subText = "RECEPTOR POCKET";
     let detailText = "ALPHAFOLD 3 CO-FOLD";
 
     if (typeof arg1 === "string") {
-      // Called as (organKey, receptorLabel, peakRiskPct)
       titleText = `AF3 · ${(arg2 || arg1).toUpperCase()}`;
       subText = `ORGAN: ${arg1.toUpperCase()}`;
       detailText = `Peak Organ Risk: ${(arg3 || 0).toFixed(1)}%`;
@@ -814,8 +972,8 @@ class PharmacoBody3D {
       detailText,
       "#b6ff3c"
     );
-    this.proteinTitleSprite.position.set(0, 0.68, 0);
-    this.proteinTitleSprite.scale.set(1.4, 0.38, 1);
+    this.proteinTitleSprite.position.set(0, 0.72, 0);
+    this.proteinTitleSprite.scale.set(1.48, 0.38, 1);
     this.proteinHologramGroup.add(this.proteinTitleSprite);
   }
 
@@ -886,7 +1044,7 @@ class PharmacoBody3D {
   }
 
   /**
-   * Cosmic Space-Flight Warp into a specific organ + materialize 3D AlphaFold Target Protein!
+   * Cosmic Space-Flight Warp into a specific organ + materialize REAL 3D AlphaFold Target Protein!
    */
   warpToOrgan(organKey, showBanner = true) {
     const node = this.organNodes[organKey];
@@ -896,6 +1054,9 @@ class PharmacoBody3D {
     this.isZoomedIn = true;
     this.autoRotate = false;
     this.rootGroup.rotation.y = 0;
+
+    // Rebuild the 3D Protein Hologram using the REAL AlphaFold DB C-alpha structure for this organ
+    this._rebuildRealAlphaFoldBackbone(organKey);
 
     const targetPos =
       this.viewMode === "pipe_circuit" ? node.spec.pipePos : node.spec.anatomyPos;
@@ -918,11 +1079,12 @@ class PharmacoBody3D {
       n.labelSprite.visible = this.viewMode === "pipe_circuit" || k === organKey;
     });
 
+    const af = this.alphafoldStructures && this.alphafoldStructures[organKey];
     if (showBanner) {
       this._triggerWarpBanner(
         `WARP ▸ ${node.spec.en}`,
-        `${node.spec.ko} · ${node.spec.target}`,
-        "ALPHAFOLD 3 TARGET POCKET LOCKED"
+        af ? `${af.entry_id} (${af.gene} · ${af.residue_count} aa)` : `${node.spec.ko} · ${node.spec.target}`,
+        af ? `REAL ALPHAFOLD DB 3D STRUCTURE · MEAN pLDDT ${af.mean_plddt}` : "ALPHAFOLD 3 TARGET POCKET LOCKED"
       );
     }
   }
