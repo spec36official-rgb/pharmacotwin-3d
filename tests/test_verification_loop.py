@@ -174,11 +174,14 @@ def test_fastapi_endpoints_and_verification_loop():
         assert r_photo.status_code == 200
         assert "face_uv_url" in r_photo.json()
 
-    # 7. Verify Frontend HTML, Architecture Diagram, Three.js 3D Body Script & UV Face Texture
+    # 7. Verify Frontend HTML (Onboarding + Selective Overlays), Architecture Diagram & 2-Mode 3D Hologram Script
     r_index = client.get("/")
     assert r_index.status_code == 200
     assert "PharmacoTwin 3D" in r_index.text
+    assert "onboarding-screen" in r_index.text
+    assert "overlay-window" in r_index.text
     assert "body3d-canvas-container" in r_index.text
+    assert "user_face_uv.jpg" not in r_index.text
 
     r_arch = client.get("/architecture")
     assert r_arch.status_code == 200
@@ -186,5 +189,8 @@ def test_fastapi_endpoints_and_verification_loop():
 
     r_js = client.get("/static/js/body3d.js")
     assert r_js.status_code == 200
-    assert "user_face_uv.jpg" in r_js.text
+    assert "pipe_circuit" in r_js.text
+    assert "warpToOrgan" in r_js.text
+    assert "user_face_uv.jpg" not in r_js.text
+
 
