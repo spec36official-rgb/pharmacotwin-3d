@@ -3,887 +3,610 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PharmacoTwin 3D — Multi-Scale In-Silico PK/PD & AlphaFold 3 Toxicology Lab</title>
-  <!-- Google Fonts matching sample_UI.html futuristic hologram lab aesthetic -->
+  <link rel="icon" href="data:," />
+  <title>PharmacoTwin 3D — patient-specific PK/PD and organ toxicity</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Pretendard+Variable:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Styles -->
-  <link rel="stylesheet" href="/static/css/styles.css?v=3.0" />
-  <!-- Three.js (r128) + OrbitControls for 3D Holographic Human & Vascular Pipe Circuit -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="/static/css/styles.css?v=4.0" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <!-- 3Dmol.js for Real PDB Protein & Molecular 3D Visualization -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
-  <!-- Chart.js for Time-Series PK/PD & Organ Concentration Curves -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <!-- Inline icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-chev-left" viewBox="0 0 16 16"><path d="M10 3.5 5.5 8 10 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chev-right" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3.2v9.6L12.6 8z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 16 16"><path d="M4.5 3h2.4v10H4.5zM9.1 3h2.4v10H9.1z" fill="currentColor"/></symbol>
+    <symbol id="i-restart" viewBox="0 0 16 16"><path d="M3.5 8a4.5 4.5 0 1 0 1.4-3.3M3.5 2.8v2.6h2.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="12.5" cy="8" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-close" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 2.5v8M4.8 7.5 8 10.7l3.2-3.2M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
 
-  <!-- Cosmic Scanline & Vignette HUD Layers (from sample_UI.html) -->
-  <div class="scan"></div>
-  <div class="vig"></div>
+  <!-- =========================================================
+       ONBOARDING: one question per step
+       ========================================================= -->
+  <section id="onboarding-screen" class="wizard" aria-label="Patient setup">
+    <div class="wz-progress" aria-hidden="true"><div class="wz-progress-fill" id="wz-progress-fill"></div></div>
 
-  <!-- Space-Flight Warp Banner when zooming into an organ -->
-  <div id="warp">
-    <div class="wt" id="warp-title">WARP ▸ HEPATIC LOBULE</div>
-    <div class="ws" id="warp-sub">ALPHAFOLD 3 TARGET: CYP2E1 (1Z10)</div>
-  </div>
-
-  <!-- ====================================================================
-       #1 ONBOARDING PAGE (Full-Screen Interactive Entry & Plain-Language PK/PD Builder)
-       ==================================================================== -->
-  <section id="onboarding-screen">
-    <div class="ob-container">
-      <!-- Top Bar in Onboarding -->
-      <div class="ob-topbar">
-        <div class="ob-brand">
-          <div class="ob-brand-badge">P3D</div>
-          <div class="ob-brand-title">
-            <h1>PHARMACOTWIN 3D</h1>
-            <span id="ob-brand-sub">GEMINI 4 ARGON × ALPHAFOLD 3 × ALPHAGENOME IN-SILICO LAB</span>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <button id="btn-ob-lang-toggle" class="btn-lang-toggle" title="Switch English / 한국어">
-            🌐 EN | 🇰🇷 한국어 번역 보기
-          </button>
-          <button id="btn-ob-skip" class="hud-btn hud-btn-cyan">
-            <span id="ob-skip-label">⚡ Skip to 3D Lab →</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Hero Mission Statement -->
-      <div class="ob-hero">
-        <div class="ob-eyebrow" id="ob-eyebrow">🚀 ONE STEP CLOSER TO TRUE IN-SILICO MEDICINE · 진정한 인실리코에 한 걸음 다가선다</div>
-        <h2 id="ob-hero-title">Why Do Safe Drugs Cause Unexpected Organ Toxicity in Real Patients?</h2>
-        <p id="ob-hero-desc">
-          Standard drug dosing assumes an "average textbook human." In reality, your kidney filtration speed (<b>CrCl</b>), body distribution volume (<b>Vd</b>), and genetic enzyme variants (<b>CYP450 / hERG / G6PD</b>) dramatically alter how fast a drug builds up and where it triggers molecular toxicity. Build your personalized <b>Human Digital Twin</b> below and travel inside your organs in 3D.
-        </p>
-      </div>
-
-      <!-- Problem Statement 3 Pillars -->
-      <div class="ob-pillars">
-        <div class="ob-pillar">
-          <span class="ob-pillar-num">PROBLEM 01 · BLIND DOSING</span>
-          <h3 id="ob-p1-title">Static Prescriptions Ignore Dynamic Organ Accumulation</h3>
-          <p id="ob-p1-desc">Even when blood concentrations look safe, lipophilic or actively transported drugs can accumulate 3×–10× higher inside the liver, kidney cortex, heart, or retina over 24 hours.</p>
-        </div>
-        <div class="ob-pillar">
-          <span class="ob-pillar-num">PROBLEM 02 · MOLECULAR BLACK BOX</span>
-          <h3 id="ob-p2-title">Unseen Protein-Drug Collisions (AlphaFold 3 Scale)</h3>
-          <p id="ob-p2-desc">Organ injury begins when drug molecules or reactive metabolites bind off-target receptors (like <b>hERG K+ channels</b> in the heart or <b>CYP2E1</b> in liver cells). We bridge 3D protein structures directly into differential equations.</p>
-        </div>
-        <div class="ob-pillar">
-          <span class="ob-pillar-num">PROBLEM 03 · GENOMIC VARIABILITY</span>
-          <h3 id="ob-p3-title">Single DNA Letter Changes Shift Toxicity Thresholds</h3>
-          <p id="ob-p3-desc">A single SNP in <b>CYP2E1</b>, <b>CYP3A4</b>, or <b>G6PD</b> can double toxic metabolite formation or halve clearance. AlphaGenome regulatory multipliers personalize your digital twin before a single pill is taken.</p>
-        </div>
-      </div>
-
-      <!-- Step-by-Step Human Profile Builder + Plain-Language Derived Value Cards -->
-      <div class="ob-builder-grid">
-        <!-- Left: Step-by-Step Human Profile Form -->
-        <div class="ob-card">
-          <div class="ob-card-header">
-            <h3 id="ob-form-title">STEP 1 · Build Your Human Digital Twin Profile</h3>
-            <span class="hud-badge" id="ob-form-badge">INTERACTIVE PHYSIOLOGY INPUT</span>
-          </div>
-
-          <div class="ob-input-grid">
-            <div class="ob-field">
-              <label for="ob-age">
-                <span id="lbl-ob-age">Age (연령)</span>
-                <span class="ob-hint">Years</span>
-              </label>
-              <input type="number" id="ob-age" value="26" min="15" max="95" />
-            </div>
-
-            <div class="ob-field">
-              <label for="ob-sex">
-                <span id="lbl-ob-sex">Biological Sex (생물학적 성별)</span>
-                <span class="ob-hint">Affects CrCl & Fat %</span>
-              </label>
-              <select id="ob-sex">
-                <option value="male" selected>Male (남성 · ×1.00 CrCl)</option>
-                <option value="female">Female (여성 · ×0.85 CrCl)</option>
-              </select>
-            </div>
-
-            <div class="ob-field">
-              <label for="ob-weight">
-                <span id="lbl-ob-weight">Body Weight (체중)</span>
-                <span class="ob-hint">kg</span>
-              </label>
-              <input type="number" id="ob-weight" value="68" min="35" max="160" step="1" />
-            </div>
-
-            <div class="ob-field">
-              <label for="ob-height">
-                <span id="lbl-ob-height">Height (신장)</span>
-                <span class="ob-hint">cm</span>
-              </label>
-              <input type="number" id="ob-height" value="174" min="130" max="210" step="1" />
-            </div>
-
-            <div class="ob-field">
-              <label for="ob-scr">
-                <span id="lbl-ob-scr">Serum Creatinine · SCr (혈중 크레아티닌)</span>
-                <span class="ob-hint">Normal: 0.7–1.2 mg/dL</span>
-              </label>
-              <input type="number" id="ob-scr" value="0.95" min="0.4" max="6.0" step="0.05" />
-            </div>
-
-            <div class="ob-field">
-              <label for="ob-hepatic">
-                <span id="lbl-ob-hepatic">Liver Metabolism Capacity (간 대사 기능)</span>
-                <span class="ob-hint">Child-Pugh Scale</span>
-              </label>
-              <select id="ob-hepatic">
-                <option value="1.0" selected>Normal Liver Function (정상 · 100%)</option>
-                <option value="0.65">Mild Hepatic Impairment (경증 간기능 저하 · 65%)</option>
-                <option value="0.35">Severe Cirrhosis (중증 간경변 · 35%)</option>
-              </select>
-            </div>
-
-            <div class="ob-field">
-              <label for="ob-cyp2e1">
-                <span id="lbl-ob-cyp2e1">CYP2E1 Genotype (간 독성 대사 효소 유전자)</span>
-                <span class="ob-hint">rs2031920</span>
-              </label>
-              <select id="ob-cyp2e1">
-                <option value="normal" selected>*1A/*1A Normal (표준 대사형 · 1.0×)</option>
-                <option value="ultrametabolizer">*5B/*5B Ultra-Inducer (독성 대사물 급증 · 1.85×)</option>
-                <option value="poor">*6/*6 Reduced Activity (대사 저하형 · 0.55×)</option>
-              </select>
-            </div>
-
-            <div class="ob-field">
-              <label for="ob-herg">
-                <span id="lbl-ob-herg">KCNH2 / hERG Cardiac Channel (심장 이온통로 유전자)</span>
-                <span class="ob-hint">rs1805123</span>
-              </label>
-              <select id="ob-herg">
-                <option value="normal" selected>WT/WT Normal Cardiac Repolarization (정상)</option>
-                <option value="sensitive">Q1070X Long-QT Sensitive (부정맥 고위험 · 1.9×)</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-            <span style="font-size:0.75rem;color:var(--text-secondary);" id="ob-preset-hint">
-              💡 Try changing Age, Weight, or SCr above to see how your body's filtering speed changes in real time!
-            </span>
-            <div style="display:flex;gap:6px;">
-              <button type="button" class="hud-btn" id="btn-ob-preset-healthy" style="font-size:0.68rem;padding:5px 10px;">Healthy 26yo</button>
-              <button type="button" class="hud-btn" id="btn-ob-preset-renal" style="font-size:0.68rem;padding:5px 10px;border-color:rgba(255,179,71,0.4);color:var(--accent-amber);">Renal Decline (SCr 2.1)</button>
-              <button type="button" class="hud-btn" id="btn-ob-preset-highrisk" style="font-size:0.68rem;padding:5px 10px;border-color:rgba(255,77,109,0.4);color:var(--accent-red);">PGx High-Risk</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Plain-Language Derived Indicators (Non-Expert Friendly) -->
-        <div class="ob-card">
-          <div class="ob-card-header">
-            <h3 id="ob-derived-title">STEP 2 · What Your Body Numbers Mean (Plain-Language Guide)</h3>
-            <span class="hud-badge" style="color:var(--accent-emerald);border-color:rgba(0,245,160,0.35);background:rgba(0,245,160,0.08);">LIVE CALCULATED</span>
-          </div>
-
-          <div class="ob-derived-list">
-            <!-- CrCl Card -->
-            <div class="ob-metric-explain">
-              <div class="ob-metric-top">
-                <div class="ob-metric-name">
-                  <span class="code">CrCl · Creatinine Clearance</span>
-                  <span class="plain" id="ob-crcl-title">Kidneys' Blood Filtering Speed (신장이 1분당 깨끗하게 걸러내는 혈액의 양)</span>
-                </div>
-                <div class="ob-metric-val">
-                  <span class="num" id="ob-crcl-val">109.2</span>
-                  <span class="unit">mL/min</span>
-                </div>
-              </div>
-              <div class="ob-metric-bar-track">
-                <div class="ob-metric-bar-fill" id="ob-crcl-bar" style="width:82%;background:linear-gradient(90deg,#00f2fe,#00f5a0);"></div>
-              </div>
-              <div class="ob-metric-desc" id="ob-crcl-desc">
-                <b>Easy Analogy:</b> Think of your kidneys as a water purifier. Using the <b>Cockcroft-Gault equation</b> from your age, weight, sex, and waste level (<code>SCr</code>), your kidneys purify <b>109.2 mL of blood every minute</b> (Normal ≥ 90 mL/min). If this drops, kidney-cleared drugs stay trapped in your bloodstream and can poison organs.
-              </div>
-            </div>
-
-            <!-- Vd Card -->
-            <div class="ob-metric-explain">
-              <div class="ob-metric-top">
-                <div class="ob-metric-name">
-                  <span class="code">Vd · Volume of Distribution</span>
-                  <span class="plain" id="ob-vd-title">Body Container Size for the Drug (약물이 퍼져나가는 체내 물탱크 크기)</span>
-                </div>
-                <div class="ob-metric-val">
-                  <span class="num" id="ob-vd-val">64.6</span>
-                  <span class="unit">Liters (L)</span>
-                </div>
-              </div>
-              <div class="ob-metric-bar-track">
-                <div class="ob-metric-bar-fill" id="ob-vd-bar" style="width:65%;background:linear-gradient(90deg,#38bdf8,#c77dff);"></div>
-              </div>
-              <div class="ob-metric-desc" id="ob-vd-desc">
-                <b>Easy Analogy:</b> Imagine dropping a spoonful of dye into a fish tank. A larger body weight or tissue-Loving drug creates a <b>64.6 L virtual tank</b>. A smaller tank means the same pill produces a much sharper, potentially toxic spike in blood concentration (<code>Cmax</code>).
-              </div>
-            </div>
-
-            <!-- Half-Life & Metabolic Risk Card -->
-            <div class="ob-metric-explain">
-              <div class="ob-metric-top">
-                <div class="ob-metric-name">
-                  <span class="code">t½ & PGx · Elimination Half-Life & Genetic Shield</span>
-                  <span class="plain" id="ob-thalf-title">Time to Clean Up 50% of the Drug (약물 절반이 해독·배설되는 시간 및 유전적 민감도)</span>
-                </div>
-                <div class="ob-metric-val">
-                  <span class="num" id="ob-thalf-val">2.4</span>
-                  <span class="unit">Hours (h)</span>
-                </div>
-              </div>
-              <div class="ob-metric-bar-track">
-                <div class="ob-metric-bar-fill" id="ob-thalf-bar" style="width:45%;background:linear-gradient(90deg,#00f5a0,#ffb347);"></div>
-              </div>
-              <div class="ob-metric-desc" id="ob-thalf-desc">
-                <b>Easy Analogy:</b> Combining your liver function (<b>100%</b>), kidney speed, and genetic profile, your body clears half of a standard Acetaminophen dose every <b>2.4 hours</b>. Your genetic risk multiplier is currently <b>1.00× (Standard)</b>.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Launch Footer CTA -->
-      <div class="ob-footer-cta">
-        <div class="ob-footer-info">
-          <h4 id="ob-cta-title">Ready to Enter the 3D Holographic Simulation Lab?</h4>
-          <p id="ob-cta-sub">Explore 2 3D modes (Human Dot-Matrix Hologram & PBPK Vascular Pipe Circuit), click any organ to warp inside its AlphaFold 3 target receptor, or close all windows for a pure 3D experience.</p>
-        </div>
-        <button id="btn-enter-lab" class="btn-launch-lab">
-          <span id="btn-enter-lab-text">🚀 Launch 3D In-Silico Simulation Lab</span>
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ====================================================================
-       #2 & #3 FULL-SCREEN 3D SIMULATION STAGE + SELECTIVE OVERLAY WINDOWS
-       ==================================================================== -->
-  <main id="sim-stage">
-    <!-- 100vw x 100vh Three.js Canvas Container -->
-    <div id="body3d-canvas-container"></div>
-
-    <!-- TOP FLOATING HUD BAR -->
-    <header class="lab-hud-top">
-      <!-- Left: Brand + Quick Onboarding/Profile Re-open + Current Drug/Route Summary Pill -->
-      <div class="hud-brand-pill holo">
-        <div class="hud-logo">P3D</div>
-        <div class="hud-title-block">
-          <h1>PHARMACOTWIN 3D</h1>
-          <p id="hud-active-summary">ACETAMINOPHEN · 2500mg ORAL · CrCl 109 mL/min</p>
-        </div>
-        <button id="btn-open-onboarding" class="hud-btn" style="margin-left:6px;padding:6px 10px;font-size:0.68rem;" title="Edit Human Profile & Onboarding Guide">
-          <span id="lbl-btn-onboarding">👤 Human Twin Profile</span>
-        </button>
-      </div>
-
-      <!-- Center: 2-Mode 3D Switcher (Anatomy Hologram vs Vascular Pipe Circuit) + Camera Reset -->
-      <div class="hud-center-controls">
-        <div class="mode-switch-group">
-          <button id="btn-mode-anatomy" class="mode-switch-btn active" title="3D Dot-Matrix Human Anatomy & Organ Hologram">
-            <span id="lbl-mode-anatomy">🧍 Mode 1: 3D Human Hologram</span>
-          </button>
-          <button id="btn-mode-pipe" class="mode-switch-btn" title="3D PBPK Blood Circulation Pipe & Clear Organ Nodes">
-            <span id="lbl-mode-pipe">🔀 Mode 2: Vascular Pipe Circuit</span>
-          </button>
-        </div>
-
-        <button id="btn-camera-macro" class="hud-btn hud-btn-cyan" title="Zoom Out to Full-Body Macro View">
-          <span id="lbl-camera-macro">🔭 Full-Body Macro View</span>
-        </button>
-      </div>
-
-      <!-- Right: Overlay Controls, Phase 2 AlphaFold, Curriculum, Language Toggle -->
-      <div class="hud-right-actions">
-        <button id="btn-close-all-overlays" class="hud-btn" title="Close all gray overlay windows so only the 3D simulation remains">
-          <span id="lbl-pure-3d">👁️ Pure 3D View (Close Windows)</span>
-        </button>
-        <button id="btn-alphafold-modal" class="hud-btn hud-btn-purple">
-          <span id="lbl-btn-af3">🧬 Phase 2: AlphaFold 3 Co-Fold</span>
-        </button>
-        <button id="btn-curriculum-modal" class="hud-btn">
-          <span id="lbl-btn-curriculum">📚 Tox Lectures</span>
-        </button>
-        <button id="btn-lang-toggle" class="btn-lang-toggle" title="Toggle English / Korean UI">
-          🌐 EN | 🇰🇷 한국어
-        </button>
+    <header class="wz-top">
+      <span class="wordmark">PharmacoTwin</span>
+      <div class="wz-top-actions">
+        <button type="button" class="btn btn-ghost btn-sm js-lang-toggle" id="btn-ob-lang-toggle"><span class="js-lang-label">한국어</span></button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-ob-skip" data-i18n="wz.skip">Skip to lab</button>
       </div>
     </header>
 
-    <!-- FLOATING LEFT DOCK: Triggers to open/toggle Left Overlay Windows when closed -->
-    <div class="stage-quick-dock">
-      <button id="dock-btn-drug" class="quick-dock-btn active-win" title="Open Drug, Route & Administration Settings Window">
-        <span class="q-dot" style="background:var(--accent-cyan);"></span>
-        <span id="lbl-dock-drug">💊 Drug, Route & Regimen Settings</span>
-      </button>
-      <button id="dock-btn-patient" class="quick-dock-btn" title="Open Patient Physiology & AlphaGenome PGx Window">
-        <span class="q-dot" style="background:var(--accent-purple);"></span>
-        <span id="lbl-dock-patient">🧬 Patient CrCl & AlphaGenome PGx</span>
-      </button>
-      <button id="dock-btn-organ" class="quick-dock-btn active-win" title="Open Selected Organ & AlphaFold 3 Receptor Inspector Window">
-        <span class="q-dot" style="background:var(--accent-emerald);"></span>
-        <span id="lbl-dock-organ">🔬 Organ & AlphaFold 3 Target Inspector</span>
-      </button>
-      <button id="dock-btn-pkchart" class="quick-dock-btn" title="Open PK/PD Time-Series & Clinical Verification Gate Window">
-        <span class="q-dot" style="background:var(--accent-amber);"></span>
-        <span id="lbl-dock-pkchart">📈 PK/PD Curves & Gemini 4 Argon AI</span>
-      </button>
+    <div class="wz-stage" id="wz-stage">
+      <!-- Step 0 · intro -->
+      <section class="wz-step" data-step="0">
+        <div class="wz-col">
+          <p class="wz-kicker" data-i18n="wz.intro.kicker">Patient-specific pharmacology</p>
+          <h1 class="wz-hero">PharmacoTwin</h1>
+          <p class="wz-lede" data-i18n="wz.intro.lede">See where a dose travels in one patient's body, and which organs it may harm.</p>
+          <div class="wz-actions-row">
+            <button type="button" class="btn btn-primary btn-lg" id="btn-wz-start" data-i18n="wz.intro.start">Start</button>
+            <button type="button" class="btn btn-secondary btn-lg" id="btn-wz-skip" data-i18n="wz.skip">Skip to lab</button>
+          </div>
+          <p class="wz-note" data-i18n="wz.intro.note">Five short questions. About a minute.</p>
+          <div class="wz-presets">
+            <span class="field-label" data-i18n="wz.presets">Or load a preset</span>
+            <div class="chip-row">
+              <button type="button" class="chip" data-preset="healthy" data-i18n="preset.healthy">Healthy adult</button>
+              <button type="button" class="chip" data-preset="renal" data-i18n="preset.renal">Renal decline</button>
+              <button type="button" class="chip" data-preset="highrisk" data-i18n="preset.highrisk">High-risk genetics</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 1 · age & sex -->
+      <section class="wz-step" data-step="1">
+        <div class="wz-col">
+          <p class="wz-kicker"><span class="mono">01</span><span data-i18n="wz.s1.kicker">About you</span></p>
+          <h2 class="wz-q" data-i18n="wz.s1.q">How old are you, and what is your sex?</h2>
+          <p class="wz-help" data-i18n="wz.s1.help">Kidney filtration slows with age and differs by sex.</p>
+          <div class="wz-fields">
+            <label class="big-field">
+              <span class="field-label" data-i18n="f.age">Age</span>
+              <span class="big-input"><input id="ob-age" type="number" inputmode="numeric" min="1" max="110" step="1" value="26" /><span class="unit" data-i18n="u.years">years</span></span>
+            </label>
+            <div class="big-field">
+              <span class="field-label" data-i18n="f.sex">Biological sex</span>
+              <div class="seg seg-lg" role="radiogroup" data-field="sex">
+                <button type="button" role="radio" data-value="M" data-i18n="opt.male">Male</button>
+                <button type="button" role="radio" data-value="F" data-i18n="opt.female">Female</button>
+              </div>
+            </div>
+          </div>
+          <p class="wz-error" data-error-for="1" hidden></p>
+        </div>
+      </section>
+
+      <!-- Step 2 · weight & height -->
+      <section class="wz-step" data-step="2">
+        <div class="wz-col">
+          <p class="wz-kicker"><span class="mono">02</span><span data-i18n="wz.s2.kicker">Body size</span></p>
+          <h2 class="wz-q" data-i18n="wz.s2.q">What are your weight and height?</h2>
+          <p class="wz-help" data-i18n="wz.s2.help">Body size sets how much space a drug spreads into.</p>
+          <div class="wz-fields">
+            <label class="big-field">
+              <span class="field-label" data-i18n="f.weight">Weight</span>
+              <span class="big-input"><input id="ob-weight" type="number" inputmode="decimal" min="20" max="250" step="1" value="68" /><span class="unit">kg</span></span>
+            </label>
+            <label class="big-field">
+              <span class="field-label" data-i18n="f.height">Height</span>
+              <span class="big-input"><input id="ob-height" type="number" inputmode="decimal" min="100" max="230" step="1" value="174" /><span class="unit">cm</span></span>
+            </label>
+          </div>
+          <p class="wz-error" data-error-for="2" hidden></p>
+        </div>
+      </section>
+
+      <!-- Step 3 · serum creatinine -->
+      <section class="wz-step" data-step="3">
+        <div class="wz-col">
+          <p class="wz-kicker"><span class="mono">03</span><span data-i18n="wz.s3.kicker">Kidney function</span></p>
+          <h2 class="wz-q" data-i18n="wz.s3.q">What is your serum creatinine?</h2>
+          <p class="wz-help" data-i18n="wz.s3.help">It is on a routine blood test. If unsure, keep the default.</p>
+          <div class="wz-fields">
+            <label class="big-field">
+              <span class="field-label" data-i18n="f.scr">Serum creatinine</span>
+              <span class="big-input"><input id="ob-scr" type="number" inputmode="decimal" min="0.2" max="15" step="0.05" value="0.95" /><span class="unit">mg/dL</span></span>
+            </label>
+          </div>
+          <div class="scr-gauge" aria-hidden="true">
+            <div class="scr-track"><div class="scr-band"></div><div class="scr-marker" id="scr-marker"></div></div>
+            <div class="scr-scale mono"><span>0.4</span><span>1.2</span><span>2.5</span><span>4.0+</span></div>
+          </div>
+          <p class="wz-hint-line" data-i18n="wz.s3.range">Typical adult range is 0.6–1.2 mg/dL. Higher means the kidneys filter less.</p>
+          <p class="wz-error" data-error-for="3" hidden></p>
+        </div>
+      </section>
+
+      <!-- Step 4 · liver -->
+      <section class="wz-step" data-step="4">
+        <div class="wz-col">
+          <p class="wz-kicker"><span class="mono">04</span><span data-i18n="wz.s4.kicker">Liver function</span></p>
+          <h2 class="wz-q" data-i18n="wz.s4.q">How well does your liver work?</h2>
+          <p class="wz-help" data-i18n="wz.s4.help">The liver breaks down most drugs.</p>
+          <div class="choice-cards" role="radiogroup" data-field="hepatic">
+            <button type="button" role="radio" class="choice-card" data-value="normal">
+              <span class="cc-title" data-i18n="liver.normal">Normal</span>
+              <span class="cc-desc" data-i18n="liver.normal.d">No known liver disease</span>
+              <span class="cc-meta mono">100%</span>
+            </button>
+            <button type="button" role="radio" class="choice-card" data-value="mild_impairment">
+              <span class="cc-title" data-i18n="liver.mild">Mildly reduced</span>
+              <span class="cc-desc" data-i18n="liver.mild.d">For example fatty liver or early hepatitis</span>
+              <span class="cc-meta mono">75%</span>
+            </button>
+            <button type="button" role="radio" class="choice-card" data-value="severe_impairment">
+              <span class="cc-title" data-i18n="liver.severe">Severely reduced</span>
+              <span class="cc-desc" data-i18n="liver.severe.d">For example cirrhosis</span>
+              <span class="cc-meta mono">28%</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 5 · genetics -->
+      <section class="wz-step" data-step="5">
+        <div class="wz-col wz-col-wide">
+          <p class="wz-kicker"><span class="mono">05</span><span data-i18n="wz.s5.kicker">Genetics</span></p>
+          <h2 class="wz-q" data-i18n="wz.s5.q">Any known gene variants?</h2>
+          <p class="wz-help" data-i18n="wz.s5.help">Leave as typical if you have not been tested.</p>
+          <div class="gene-list">
+            <div class="gene-row">
+              <div class="gene-text"><span class="gene-name mono">CYP2E1</span><span class="gene-desc" data-i18n="g.cyp2e1.d">Liver enzyme that makes acetaminophen's toxic byproduct.</span></div>
+              <div class="seg" role="radiogroup" data-field="cyp2e1">
+                <button type="button" role="radio" data-value="normal" data-i18n="opt.typical">Typical</button>
+                <button type="button" role="radio" data-value="induced" data-i18n="opt.induced">Induced</button>
+              </div>
+            </div>
+            <div class="gene-row">
+              <div class="gene-text"><span class="gene-name mono">CYP3A4</span><span class="gene-desc" data-i18n="g.cyp3a4.d">Clears about half of all drugs. Slow forms raise exposure.</span></div>
+              <div class="seg" role="radiogroup" data-field="cyp3a4">
+                <button type="button" role="radio" data-value="normal" data-i18n="opt.typical">Typical</button>
+                <button type="button" role="radio" data-value="inhibited" data-i18n="opt.inhibited">Inhibited</button>
+                <button type="button" role="radio" data-value="poor" data-i18n="opt.poor">Poor</button>
+              </div>
+            </div>
+            <div class="gene-row">
+              <div class="gene-text"><span class="gene-name mono">hERG · KCNH2</span><span class="gene-desc" data-i18n="g.herg.d">Heart potassium channel. Variants lower the arrhythmia threshold.</span></div>
+              <div class="seg" role="radiogroup" data-field="herg">
+                <button type="button" role="radio" data-value="wildtype" data-i18n="opt.typical">Typical</button>
+                <button type="button" role="radio" data-value="lqt2_carrier" data-i18n="opt.lqt2">LQT2 carrier</button>
+              </div>
+            </div>
+            <div class="gene-row">
+              <div class="gene-text"><span class="gene-name mono">G6PD</span><span class="gene-desc" data-i18n="g.g6pd.d">Protects red blood cells from oxidative damage.</span></div>
+              <div class="seg" role="radiogroup" data-field="g6pd">
+                <button type="button" role="radio" data-value="normal" data-i18n="opt.normal">Normal</button>
+                <button type="button" role="radio" data-value="deficient" data-i18n="opt.deficient">Deficient</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 6 · summary -->
+      <section class="wz-step" data-step="6">
+        <div class="wz-col wz-col-wide">
+          <p class="wz-kicker"><span class="mono">06</span><span data-i18n="wz.s6.kicker">Summary</span></p>
+          <h2 class="wz-q" data-i18n="wz.s6.q">Your twin is ready.</h2>
+          <p class="wz-help" id="wz-summary-help">Estimated for acetaminophen.</p>
+          <div class="summary-metrics">
+            <div class="sm-item">
+              <div class="sm-head"><span class="sm-label">CrCl</span><button type="button" class="info" data-tip="crcl" aria-label="CrCl">i</button></div>
+              <div class="sm-value"><span class="mono" id="sum-crcl">0</span><span class="unit">mL/min</span></div>
+              <p class="sm-text" id="sum-crcl-text"></p>
+            </div>
+            <div class="sm-item">
+              <div class="sm-head"><span class="sm-label">Vd</span><button type="button" class="info" data-tip="vd" aria-label="Vd">i</button></div>
+              <div class="sm-value"><span class="mono" id="sum-vd">0</span><span class="unit">L</span></div>
+              <p class="sm-text" id="sum-vd-text"></p>
+            </div>
+            <div class="sm-item">
+              <div class="sm-head"><span class="sm-label">t½</span><button type="button" class="info" data-tip="thalf" aria-label="t½">i</button></div>
+              <div class="sm-value"><span class="mono" id="sum-thalf">0</span><span class="unit">h</span></div>
+              <p class="sm-text" id="sum-thalf-text"></p>
+            </div>
+          </div>
+          <div class="wz-presets">
+            <span class="field-label" data-i18n="wz.presets.alt">Try a preset</span>
+            <div class="chip-row">
+              <button type="button" class="chip" data-preset="healthy" data-i18n="preset.healthy">Healthy adult</button>
+              <button type="button" class="chip" data-preset="renal" data-i18n="preset.renal">Renal decline</button>
+              <button type="button" class="chip" data-preset="highrisk" data-i18n="preset.highrisk">High-risk genetics</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- ====================================================================
-         SELECTIVE DARK-GRAY OVERLAY WINDOW 1 (LEFT):
-         Drug Selection, Administration Route Animation, Patient CrCl & PGx
-         ==================================================================== -->
-    <aside id="ov-left-config" class="overlay-window pos-left holo">
-      <div class="ov-header">
-        <div class="ov-title-wrap">
-          <span class="ov-eyebrow" id="ov-left-eyebrow">PHARMACOKINETIC & GENOMIC CONSOLE</span>
-          <h2 id="ov-left-title">Drug Regimen & Human Twin Parameters</h2>
+    <!-- Live readout from step 1 on -->
+    <aside class="wz-readout" id="wz-readout" aria-live="polite">
+      <p class="ro-title" id="ro-title">Live estimate</p>
+      <div class="ro-row"><span class="ro-k">CrCl</span><span class="ro-v mono" id="ro-crcl">—</span><span class="ro-u">mL/min</span></div>
+      <div class="ro-row"><span class="ro-k">Vd</span><span class="ro-v mono" id="ro-vd">—</span><span class="ro-u">L</span></div>
+      <div class="ro-row"><span class="ro-k">t½</span><span class="ro-v mono" id="ro-thalf">—</span><span class="ro-u">h</span></div>
+    </aside>
+
+    <footer class="wz-nav" id="wz-nav">
+      <button type="button" class="btn btn-ghost" id="btn-wz-back"><svg class="ic"><use href="#i-chev-left"/></svg><span data-i18n="wz.back">Back</span></button>
+      <span class="wz-keyhint" data-i18n="wz.hint">Enter to continue · Esc to go back</span>
+      <button type="button" class="btn btn-primary" id="btn-wz-next"><span id="wz-next-label">Continue</span><svg class="ic"><use href="#i-chev-right"/></svg></button>
+    </footer>
+  </section>
+
+  <!-- =========================================================
+       LAB: full-screen 3D + panels
+       ========================================================= -->
+  <main id="sim-stage">
+    <div id="body3d-canvas-container"></div>
+
+    <header class="topbar">
+      <div class="tb-left">
+        <span class="wordmark">PharmacoTwin</span>
+        <span class="tb-sep" aria-hidden="true"></span>
+        <span class="tb-summary" id="hud-active-summary">—</span>
+      </div>
+      <div class="tb-center">
+        <div class="seg seg-sm" id="view-toggle" role="radiogroup" aria-label="View">
+          <button type="button" role="radio" data-view="anatomy" class="is-on" aria-checked="true" data-i18n="tb.anatomy">Anatomy</button>
+          <button type="button" role="radio" data-view="pipe_circuit" aria-checked="false" data-i18n="tb.circulation">Circulation</button>
         </div>
-        <button class="ov-close-btn" data-close-overlay="ov-left-config" title="Close Overlay Window (Pure 3D View)">✕</button>
       </div>
-
-      <!-- Sub-tabs inside Left Overlay -->
-      <div class="ov-tabs">
-        <button class="ov-tab active" data-left-tab="tab-drug" id="btn-ltab-drug">💊 Drug & Route</button>
-        <button class="ov-tab" data-left-tab="tab-patient" id="btn-ltab-patient">🧍 Physiology (CrCl/Vd)</button>
-        <button class="ov-tab" data-left-tab="tab-pgx" id="btn-ltab-pgx">🧬 AlphaGenome PGx</button>
+      <div class="tb-right">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-camera-macro" data-i18n="tb.reset">Reset view</button>
+        <button type="button" class="btn btn-ghost btn-sm js-lang-toggle" id="btn-lang-toggle"><span class="js-lang-label">한국어</span></button>
+        <div class="menu-wrap">
+          <button type="button" class="btn btn-icon" id="btn-overflow" aria-haspopup="menu" aria-expanded="false" data-i18n-title="tb.more" title="More"><svg class="ic"><use href="#i-more"/></svg></button>
+          <div class="menu" id="overflow-menu" role="menu" hidden>
+            <button type="button" role="menuitem" id="btn-alphafold-modal"><span data-i18n="menu.novel">Novel compound</span><small data-i18n="menu.novel.sub">AlphaFold 3 job and PK estimate</small></button>
+            <button type="button" role="menuitem" id="btn-curriculum-modal"><span data-i18n="menu.notes">Lecture notes</span><small data-i18n="menu.notes.sub">Toxicology curriculum</small></button>
+            <button type="button" role="menuitem" id="btn-open-onboarding"><span data-i18n="menu.patient">Edit patient</span><small data-i18n="menu.patient.sub">Reopen the setup steps</small></button>
+          </div>
+        </div>
       </div>
+    </header>
 
-      <div class="ov-body">
-        <!-- TAB 1: Drug, 3D Structure & Administration Route -->
-        <div id="tab-drug" class="left-tab-pane">
-          <div class="control-group">
-            <label for="drug-select" id="lbl-select-drug">Active Compound (약물 선택)</label>
-            <select id="drug-select">
-              <option value="acetaminophen">Acetaminophen (APAP) — Hepatotoxicity (CYP2E1 → NAPQI)</option>
-              <option value="doxorubicin">Doxorubicin (Adriamycin) — Cardiotoxicity & Myelosuppression</option>
-              <option value="gentamicin">Gentamicin — Nephrotoxicity & Ototoxicity (Megalin/S2)</option>
-              <option value="amiodarone">Amiodarone — Pulmonary Fibrosis, hERG QT & Corneal Microdeposits</option>
-              <option value="primaquine">Primaquine — G6PD Hemolytic Anemia & Methemoglobinemia</option>
-              <option value="cisplatin">Cisplatin — S3 Proximal Tubule Necrosis & Peripheral Neuropathy</option>
-              <option value="chlorpromazine">Chlorpromazine — CNS Extrapyramidal D2 Blockade & Ocular Pigmentation</option>
-              <option value="paraquat">Paraquat (Ref Tox) — Clara/Alveolar Redox Cycling & Pulmonary Fibrosis</option>
+    <!-- Left panel · Regimen -->
+    <aside id="panel-regimen" class="panel panel-left overlay-window">
+      <button type="button" class="panel-handle" data-panel="panel-regimen" aria-expanded="true" data-i18n-title="panel.toggle" title="Show or hide panel"><svg class="ic"><use href="#i-chev-left"/></svg></button>
+      <div class="panel-head"><h2 data-i18n="reg.title">Regimen</h2></div>
+      <div class="panel-body">
+        <div class="field">
+          <label class="field-label" for="drug-select" data-i18n="reg.drug">Drug</label>
+          <select id="drug-select"></select>
+          <p class="drug-desc" id="drug-desc"></p>
+        </div>
+
+        <div class="mol-card">
+          <div id="drug-mol-viewer" class="mol-viewer mol-viewer-sm"></div>
+          <div class="mol-meta"><span class="mono" id="mol-formula-label"></span><span class="muted" id="drug-mol-tag"></span></div>
+        </div>
+
+        <div class="field">
+          <span class="field-label" data-i18n="reg.route">Route</span>
+          <div class="seg seg-full" id="route-seg" role="radiogroup">
+            <button type="button" role="radio" data-route="oral" data-i18n="route.oral">Oral</button>
+            <button type="button" role="radio" data-route="iv_bolus" data-i18n="route.iv_bolus">IV bolus</button>
+            <button type="button" role="radio" data-route="iv_infusion" data-i18n="route.iv_infusion">IV infusion</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-row"><label class="field-label" for="dose-slider" data-i18n="reg.dose">Dose</label><span class="value mono" id="dose-val-label">— mg</span></div>
+          <div class="dose-slider">
+            <div class="dose-track" id="dose-track"><span class="seg-safe"></span><span class="seg-high"></span><span class="seg-toxic"></span></div>
+            <input type="range" id="dose-slider" min="50" max="6000" step="50" value="500" />
+            <div class="dose-ticks" id="dose-ticks"></div>
+          </div>
+          <div class="dose-marks" id="dose-marks">
+            <button type="button" class="mark" data-mark="ther"><i class="dot safe"></i><span data-i18n="mark.ther">Therapeutic</span></button>
+            <button type="button" class="mark" data-mark="high"><i class="dot caution"></i><span data-i18n="mark.high">High</span></button>
+            <button type="button" class="mark" data-mark="toxic"><i class="dot danger"></i><span data-i18n="mark.toxic">Toxic</span></button>
+          </div>
+        </div>
+
+        <div class="field-grid-2">
+          <div class="field">
+            <label class="field-label" for="interval-select" data-i18n="reg.interval">Every</label>
+            <select id="interval-select">
+              <option value="4">4 h</option>
+              <option value="6">6 h</option>
+              <option value="8" selected>8 h</option>
+              <option value="12">12 h</option>
+              <option value="24">24 h</option>
             </select>
           </div>
-
-          <div class="drug-meta-badges" id="drug-meta-badges">
-            <span class="meta-badge">MW: 151.16 g/mol</span>
-            <span class="meta-badge">f_u: 0.80</span>
-            <span class="meta-badge">Target: CYP2E1 (1Z10)</span>
-          </div>
-
-          <!-- 3D Drug Structure Mini Viewer -->
-          <div style="margin-top:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <span style="font-size:0.68rem;color:var(--text-secondary);font-weight:600;" id="lbl-3d-drug-mol">3D Molecular Conformer (Interactive Drag/Zoom)</span>
-              <span class="mono" style="font-size:0.65rem;color:var(--accent-cyan);" id="mol-formula-label">C8H9NO2</span>
-            </div>
-            <div id="drug-mol-viewer" class="mol-viewer-box" style="height:145px;">
-              <div class="mol-overlay-tag" id="drug-mol-tag">PubChem 3D Conformer</div>
-            </div>
-          </div>
-
-          <!-- Administration Route Selector (IV, SC, Oral) -->
-          <div class="control-group" style="margin-top:10px;">
-            <label id="lbl-admin-route">Administration Route & 3D Bolus Animation (투여 경로)</label>
-            <div class="route-selector">
-              <button class="route-btn active" data-route="oral">
-                <span class="route-icon">💊</span>
-                <span id="lbl-route-oral">Oral (PO)</span>
-                <small id="sub-route-oral">GI → Portal → Liver</small>
-              </button>
-              <button class="route-btn" data-route="iv">
-                <span class="route-icon">💉</span>
-                <span id="lbl-route-iv">IV Bolus</span>
-                <small id="sub-route-iv">100% Direct Central</small>
-              </button>
-              <button class="route-btn" data-route="sc">
-                <span class="route-icon">🩹</span>
-                <span id="lbl-route-sc">Subcutaneous</span>
-                <small id="sub-route-sc">Slow Depot Release</small>
-              </button>
-            </div>
-          </div>
-
-          <!-- Dose Slider -->
-          <div class="slider-row" style="margin-top:10px;">
-            <div class="slider-header">
-              <span id="lbl-dose">Single / Per-Interval Dose (투여 용량)</span>
-              <span class="slider-val" id="dose-val-label">2500 mg</span>
-            </div>
-            <input type="range" id="dose-slider" min="50" max="6000" step="50" value="2500" />
-            <div class="dose-presets">
-              <button class="preset-chip" id="btn-therapeutic-dose">Therapeutic (치료 용량)</button>
-              <button class="preset-chip preset-warn" id="btn-supratherapeutic-dose">Supratherapeutic (주의 용량)</button>
-              <button class="preset-chip preset-danger" id="btn-toxic-dose">Toxic Overdose (독성 과량)</button>
-            </div>
-          </div>
-
-          <!-- Regimen Controls -->
-          <div class="input-grid-2" style="margin-top:8px;">
-            <div class="control-group">
-              <label for="interval-select" id="lbl-interval">Dosing Interval (투여 간격)</label>
-              <select id="interval-select">
-                <option value="24" selected>Single Dose (1회 단독 투여)</option>
-                <option value="12">q12h (12시간마다 반복)</option>
-                <option value="8">q8h (8시간마다 반복)</option>
-                <option value="6">q6h (6시간마다 반복)</option>
-              </select>
-            </div>
-            <div class="control-group">
-              <label for="num-doses-select" id="lbl-num-doses">Repeated Doses (반복 횟수)</label>
-              <select id="num-doses-select">
-                <option value="1" selected>1 Dose</option>
-                <option value="2">2 Doses</option>
-                <option value="3">3 Doses</option>
-                <option value="4">4 Doses</option>
-              </select>
-            </div>
-          </div>
-
-          <button id="btn-administer" class="btn-administer-main" style="margin-top:10px;">
-            🚀 <span id="lbl-btn-administer">Administer Dose & Launch 3D Simulation</span>
-          </button>
-        </div>
-
-        <!-- TAB 2: Patient Physiology & Plain-Language PK Summary -->
-        <div id="tab-patient" class="left-tab-pane hidden">
-          <div class="input-grid-2">
-            <div class="control-group">
-              <label for="patient-age">Age (연령)</label>
-              <input type="number" id="patient-age" value="26" min="15" max="95" />
-            </div>
-            <div class="control-group">
-              <label for="patient-sex">Biological Sex (성별)</label>
-              <select id="patient-sex">
-                <option value="male" selected>Male (남성)</option>
-                <option value="female">Female (여성)</option>
-              </select>
-            </div>
-            <div class="control-group">
-              <label for="patient-weight">Weight (체중 kg)</label>
-              <input type="number" id="patient-weight" value="68" min="35" max="150" step="1" />
-            </div>
-            <div class="control-group">
-              <label for="patient-height">Height (신장 cm)</label>
-              <input type="number" id="patient-height" value="174" min="130" max="210" step="1" />
-            </div>
-            <div class="control-group">
-              <label for="patient-scr">Serum Creatinine SCr (mg/dL)</label>
-              <input type="number" id="patient-scr" value="0.95" min="0.4" max="6.0" step="0.05" />
-            </div>
-            <div class="control-group">
-              <label for="hepatic-factor">Hepatic Function (간기능)</label>
-              <select id="hepatic-factor">
-                <option value="1.0" selected>Normal (100%)</option>
-                <option value="0.65">Mild Child-Pugh A (65%)</option>
-                <option value="0.35">Severe Cirrhosis (35%)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Derived PK Parameters Box -->
-          <div class="derived-pk-box" style="margin-top:12px;">
-            <div class="pk-stat">
-              <span class="pk-label" title="Cockcroft-Gault Creatinine Clearance (신장 여과 속도)">CrCl (Kidney Filter)</span>
-              <span class="pk-value" id="stat-crcl">109.2 mL/min</span>
-            </div>
-            <div class="pk-stat">
-              <span class="pk-label" title="Volume of Distribution (약물 분포 용적)">Vd (Body Tank)</span>
-              <span class="pk-value" id="stat-vd">64.6 L</span>
-            </div>
-            <div class="pk-stat">
-              <span class="pk-label" title="Total Systemic Clearance (총 청소율)">CL_tot</span>
-              <span class="pk-value" id="stat-cl">18.4 L/h</span>
-            </div>
-            <div class="pk-stat">
-              <span class="pk-label" title="Elimination Half-Life (반감기)">Half-Life (t½)</span>
-              <span class="pk-value" id="stat-thalf">2.4 h</span>
-            </div>
-          </div>
-
-          <div style="margin-top:10px;padding:10px;border-radius:8px;background:rgba(0,242,254,0.05);border:1px solid rgba(0,242,254,0.18);font-size:0.74rem;color:var(--text-secondary);line-height:1.5;" id="patient-plain-explain">
-            💡 <b>Plain-Language Insight:</b> Your kidneys filter <b>109.2 mL/min</b> of blood. Lowering CrCl (by raising SCr) slows renal excretion and increases kidney & systemic drug exposure.
+          <div class="field">
+            <label class="field-label" for="num-doses-select" data-i18n="reg.doses">Doses</label>
+            <select id="num-doses-select">
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
           </div>
         </div>
 
-        <!-- TAB 3: Phase 3 AlphaGenome PGx Personalization -->
-        <div id="tab-pgx" class="left-tab-pane hidden">
-          <div class="pgx-grid">
-            <div class="control-group">
-              <label for="pgx-cyp2e1">CYP2E1 (rs2031920 · Chr10 Promoter)</label>
-              <select id="pgx-cyp2e1">
-                <option value="normal" selected>*1A/*1A (Normal Metabolic Rate)</option>
-                <option value="ultrametabolizer">*5B/*5B (Ultra-Inducer: +85% NAPQI)</option>
-                <option value="poor">*6/*6 (Poor Metabolizer: -45% Act.)</option>
-              </select>
+        <button type="button" class="btn btn-primary btn-block" id="btn-administer"><span id="lbl-btn-administer" data-i18n="reg.run">Run simulation</span></button>
+
+        <div class="patient-card">
+          <div class="field-row">
+            <span class="section-label" data-i18n="reg.patient">Patient</span>
+            <button type="button" class="link-btn" id="btn-edit-patient" data-i18n="reg.edit">Edit</button>
+          </div>
+          <p class="pt-line" id="patient-summary"></p>
+          <div class="chip-row chip-row-tight" id="patient-genes"></div>
+          <div class="derived-grid">
+            <div class="dv"><span class="dv-k">CrCl <button type="button" class="info" data-tip="crcl" aria-label="CrCl">i</button></span><span class="dv-v mono" id="stat-crcl">—</span></div>
+            <div class="dv"><span class="dv-k">Vd <button type="button" class="info" data-tip="vd" aria-label="Vd">i</button></span><span class="dv-v mono" id="stat-vd">—</span></div>
+            <div class="dv"><span class="dv-k">t½ <button type="button" class="info" data-tip="thalf" aria-label="t½">i</button></span><span class="dv-v mono" id="stat-thalf">—</span></div>
+          </div>
+          <details class="seq-details">
+            <summary data-i18n="reg.seq">Genotype sequences</summary>
+            <div id="pgx-sequence-detail" class="seq-list"></div>
+          </details>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right panel · Organs -->
+    <aside id="panel-organs" class="panel panel-right overlay-window">
+      <button type="button" class="panel-handle" data-panel="panel-organs" aria-expanded="true" data-i18n-title="panel.toggle" title="Show or hide panel"><svg class="ic"><use href="#i-chev-right"/></svg></button>
+      <div class="panel-head">
+        <h2 data-i18n="org.title">Organs</h2>
+        <span class="status-pill" id="overall-safety-pill">—</span>
+      </div>
+      <div class="panel-body">
+        <p class="section-label" data-i18n="org.peak">Peak risk over 24 h</p>
+        <ul class="organ-list" id="organ-list" role="listbox" aria-label="Organs"></ul>
+
+        <div class="organ-detail" id="organ-detail">
+          <div class="detail-head">
+            <h3 id="detail-organ-name">—</h3>
+            <span class="risk-badge" id="detail-organ-risk-badge">—</span>
+          </div>
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" data-tab="overview" class="is-on" aria-selected="true" data-i18n="tab.overview">Overview</button>
+            <button type="button" role="tab" data-tab="structure" aria-selected="false" data-i18n="tab.structure">Structure</button>
+            <button type="button" role="tab" data-tab="curves" aria-selected="false" data-i18n="tab.curves">Curves</button>
+            <button type="button" role="tab" data-tab="review" aria-selected="false" data-i18n="tab.review">AI review</button>
+          </div>
+
+          <!-- Overview -->
+          <div class="tab-pane" id="tab-overview" role="tabpanel">
+            <div class="ov-risk">
+              <div class="ov-risk-num"><span class="mono" id="detail-risk-num">0</span><span class="unit">%</span></div>
+              <div class="meter"><div class="meter-fill" id="detail-organ-risk-bar"></div><i class="meter-tick" style="left:18%"></i><i class="meter-tick" style="left:65%"></i></div>
             </div>
-            <div class="control-group">
-              <label for="pgx-cyp3a4">CYP3A4 (rs35599367 · Intron 6)</label>
-              <select id="pgx-cyp3a4">
-                <option value="normal" selected>*1/*1 (Normal Hepatic Clearance)</option>
-                <option value="poor">*22/*22 (Reduced Clearance: 0.50× CL)</option>
-                <option value="ultrametabolizer">*1B/*1B (Rapid Clearance: 1.45× CL)</option>
-              </select>
+            <div class="kv-grid">
+              <div class="kv"><span class="kv-k"><span data-i18n="ov.peakConc">Peak tissue conc.</span> <button type="button" class="info" data-tip="cmax" aria-label="Cmax">i</button></span><span class="kv-v mono" id="detail-organ-cmax">—</span></div>
+              <div class="kv"><span class="kv-k"><span data-i18n="ov.threshold">Toxic EC50</span> <button type="button" class="info" data-tip="ec50" aria-label="EC50">i</button></span><span class="kv-v mono" id="detail-organ-thresh">—</span></div>
+              <div class="kv"><span class="kv-k" data-i18n="ov.peakAt">Peak at</span><span class="kv-v mono" id="detail-organ-peak-t">—</span></div>
             </div>
-            <div class="control-group">
-              <label for="pgx-herg">KCNH2 / hERG (rs1805123 · Cardiac K+)</label>
-              <select id="pgx-herg">
-                <option value="normal" selected>WT/WT (Normal QT Repolarization)</option>
-                <option value="sensitive">Q1070X Variant (Long-QT Sensitive 1.9×)</option>
-              </select>
+            <div class="ratio-bar" aria-hidden="true"><div class="ratio-fill" id="detail-ratio-fill"></div><i class="ratio-line"></i></div>
+            <p class="muted small" id="detail-ratio-text"></p>
+            <h4 class="sub-h" data-i18n="ov.mech">Mechanism</h4>
+            <p class="body-text" id="detail-organ-mechanism"></p>
+            <h4 class="sub-h" data-i18n="ov.biomarkers">Biomarkers</h4>
+            <div class="chip-row chip-row-tight" id="detail-organ-biomarkers"></div>
+            <p class="muted small" id="detail-organ-pathway"></p>
+          </div>
+
+          <!-- Structure -->
+          <div class="tab-pane" id="tab-structure" role="tabpanel" hidden>
+            <div class="field-row">
+              <div>
+                <span class="section-label" data-i18n="st.receptor">Target receptor</span>
+                <p class="rec-name" id="receptor-name">—</p>
+              </div>
+              <div class="seg seg-sm" id="mol-style-seg" role="radiogroup">
+                <button type="button" role="radio" data-molstyle="cartoon" class="is-on" aria-checked="true" data-i18n="st.cartoon">Cartoon</button>
+                <button type="button" role="radio" data-molstyle="surface" aria-checked="false" data-i18n="st.surface">Surface</button>
+                <button type="button" role="radio" data-molstyle="stick" aria-checked="false" data-i18n="st.pocket">Pocket</button>
+              </div>
             </div>
-            <div class="control-group">
-              <label for="pgx-g6pd">G6PD (rs1050828 · RBC NADPH Shield)</label>
-              <select id="pgx-g6pd">
-                <option value="normal" selected>Class IV Wild-Type (Normal NADPH)</option>
-                <option value="deficient">Class II Mediterranean Deficient (2.6× Hemolysis)</option>
-              </select>
+            <div class="seg seg-sm seg-full struct-source" id="struct-source-seg" role="radiogroup" aria-label="Structure source" hidden>
+              <button type="button" role="radio" data-source="afdb" aria-checked="false" data-i18n="st.srcApo">AlphaFold DB (apo)</button>
+              <button type="button" role="radio" data-source="af3" aria-checked="true" data-i18n="st.srcAf3">AlphaFold 3 complex</button>
+            </div>
+            <div id="receptor-pdb-viewer" class="mol-viewer mol-viewer-lg"></div>
+            <p class="muted small" id="receptor-overlay-tag"></p>
+            <div class="ligand-legend small" id="af3-ligand-legend" hidden></div>
+            <div class="legend">
+              <span class="legend-k"><span data-i18n="st.legend">Model confidence</span> (pLDDT) <button type="button" class="info" data-tip="plddt" aria-label="pLDDT">i</button></span>
+              <span class="lg"><i style="background:#0053d6"></i><span data-i18n="st.vhigh">Very high</span></span>
+              <span class="lg"><i style="background:#65cbf3"></i><span data-i18n="st.conf">Confident</span></span>
+              <span class="lg"><i style="background:#ffdb13"></i><span data-i18n="st.low">Low</span></span>
+              <span class="lg"><i style="background:#ff7d45"></i><span data-i18n="st.vlow">Very low</span></span>
+            </div>
+            <div class="kv-grid">
+              <div class="kv"><span class="kv-k">AlphaFold DB</span><span class="kv-v mono" id="af-ebi-id">—</span></div>
+              <div class="kv"><span class="kv-k">pLDDT <button type="button" class="info" data-tip="plddt" aria-label="pLDDT">i</button></span><span class="kv-v mono" id="af-ebi-plddt">—</span></div>
+            </div>
+            <p class="muted small" id="af-ebi-source"></p>
+            <h4 class="sub-h" data-i18n="st.binding">Drug binding estimate</h4>
+            <p class="body-text small" id="binding-target">—</p>
+            <div class="kv-grid">
+              <div class="kv"><span class="kv-k">ΔG <button type="button" class="info" data-tip="dg" aria-label="ΔG">i</button></span><span class="kv-v mono" id="binding-dg">—</span></div>
+              <div class="kv"><span class="kv-k">Kd <button type="button" class="info" data-tip="kd" aria-label="Kd">i</button></span><span class="kv-v mono" id="binding-kd">—</span></div>
+            </div>
+            <p class="muted small" data-i18n="st.bindingNote">From the built-in physics model, not an AlphaFold 3 run.</p>
+          </div>
+
+          <!-- Curves -->
+          <div class="tab-pane" id="tab-curves" role="tabpanel" hidden>
+            <div class="seg seg-sm" id="chart-mode-seg" role="radiogroup">
+              <button type="button" role="radio" data-chartmode="pk" class="is-on" aria-checked="true" data-i18n="cv.conc">Concentration</button>
+              <button type="button" role="radio" data-chartmode="tox" aria-checked="false" data-i18n="cv.risk">Organ risk</button>
+            </div>
+            <div class="chart-wrap"><canvas id="pkpd-chart"></canvas></div>
+            <div class="kv-grid kv-grid-3">
+              <div class="kv"><span class="kv-k">Cmax <button type="button" class="info" data-tip="cmax" aria-label="Cmax">i</button></span><span class="kv-v mono" id="chart-stat-cmax">—</span></div>
+              <div class="kv"><span class="kv-k">Tmax</span><span class="kv-v mono" id="chart-stat-tmax">—</span></div>
+              <div class="kv"><span class="kv-k">AUC <button type="button" class="info" data-tip="auc" aria-label="AUC">i</button></span><span class="kv-v mono" id="chart-stat-auc">—</span></div>
             </div>
           </div>
 
-          <!-- Real Genotype Inspector (ACGT Sequence) -->
-          <div id="pgx-sequence-inspector" style="margin-top:8px;padding:10px;border-radius:8px;background:rgba(199,125,255,0.07);border:1px solid rgba(199,125,255,0.28);font-size:0.71rem;line-height:1.45;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <strong style="color:var(--accent-purple);" id="lbl-pgx-seq-header">AlphaGenome Regulatory SNP Sequence</strong>
-              <span class="mono" style="font-size:0.64rem;color:var(--accent-cyan);">100% Patient Preset Ready</span>
+          <!-- AI review -->
+          <div class="tab-pane" id="tab-review" role="tabpanel" hidden>
+            <div class="model-line">
+              <span class="kv-k" data-i18n="rev.model">Model</span>
+              <span class="mono" id="review-model">—</span>
             </div>
-            <div id="pgx-sequence-detail" class="mono" style="font-size:0.65rem;color:var(--text-secondary);word-break:break-all;">
-              Select any variant above to inspect the exact chromosomal rsID, WT vs Variant DNA sequence, and AlphaGenome expression fold-change.
+            <p class="note" id="review-argon-note" hidden></p>
+
+            <h4 class="sub-h" data-i18n="rev.summary">Summary</h4>
+            <p class="body-text" id="review-summary"></p>
+
+            <h4 class="sub-h" data-i18n="rev.cascade">Toxicity cascade</h4>
+            <ol class="cascade" id="review-cascade"></ol>
+
+            <h4 class="sub-h" data-i18n="rev.antidote">Antidote</h4>
+            <p class="body-text" id="review-antidote"></p>
+
+            <div class="verify-block">
+              <div class="verify-head">
+                <span class="sub-h" data-i18n="rev.verification">Verification</span>
+                <span class="mono verify-count" id="verify-summary">—</span>
+              </div>
+              <ul class="check-list" id="verify-checks"></ul>
+              <p class="section-label" data-i18n="rev.attempts">Attempts</p>
+              <ul class="attempt-list" id="verify-attempts"></ul>
+            </div>
+
+            <div class="signoff-block">
+              <h4 class="sub-h" data-i18n="rev.signoff">Human sign-off</h4>
+              <p class="muted small" data-i18n="rev.signoffHelp">Required for every simulation before export.</p>
+              <label class="check-label">
+                <input type="checkbox" id="chk-clinical-verify" />
+                <span data-i18n="rev.check">I reviewed the doses, organ risks and checks above.</span>
+              </label>
+              <div class="field">
+                <label class="field-label" for="reviewer-name" data-i18n="rev.name">Reviewer name</label>
+                <input type="text" id="reviewer-name" autocomplete="name" />
+              </div>
+              <div class="signoff-actions">
+                <button type="button" class="btn btn-primary" id="btn-approve" disabled data-i18n="rev.approve">Approve</button>
+                <button type="button" class="btn btn-secondary" id="btn-export-report" disabled><svg class="ic"><use href="#i-download"/></svg><span data-i18n="rev.export">Export JSON</span></button>
+              </div>
+              <p class="approval-status small" id="approval-status" hidden></p>
+              <p class="disclaimer" data-i18n="rev.disclaimer">Research and education use only. Not medical advice.</p>
             </div>
           </div>
         </div>
       </div>
     </aside>
 
-    <!-- ====================================================================
-         SELECTIVE DARK-GRAY OVERLAY WINDOW 2 (RIGHT):
-         Organ Inspector + 3D AlphaFold Receptor + PK/PD Curves + Argon AI
-         ==================================================================== -->
-    <aside id="ov-right-inspector" class="overlay-window pos-right holo">
-      <div class="ov-header">
-        <div class="ov-title-wrap">
-          <span class="ov-eyebrow" id="ov-right-eyebrow">SELECTED ORGAN & ALPHAFOLD 3 TARGET INSPECTOR</span>
-          <h2 id="ov-right-title">Liver (Hepatic) · CYP2E1 (1Z10)</h2>
-        </div>
-        <button class="ov-close-btn" data-close-overlay="ov-right-inspector" title="Close Overlay Window (Pure 3D View)">✕</button>
-      </div>
-
-      <!-- Sub-tabs inside Right Overlay -->
-      <div class="ov-tabs">
-        <button class="ov-tab active" data-right-tab="rtab-organ" id="btn-rtab-organ">🔬 Organ & AlphaFold 3D</button>
-        <button class="ov-tab" data-right-tab="rtab-pkpd" id="btn-rtab-pkpd">📈 PK/PD Time Curves</button>
-        <button class="ov-tab" data-right-tab="rtab-argon" id="btn-rtab-argon">🧠 Gemini 4 Argon AI</button>
-      </div>
-
-      <div class="ov-body">
-        <!-- RIGHT TAB 1: Selected Organ Risk + 3D AlphaFold Protein Structure + Mechanism -->
-        <div id="rtab-organ" class="right-tab-pane">
-          <div class="organ-detail-card">
-            <div class="organ-detail-top">
-              <div>
-                <h3 id="detail-organ-name" style="font-family:var(--font-display);font-size:1.0rem;color:var(--accent-cyan);">Liver (Hepatic Centrilobular Zone 3)</h3>
-                <span class="organ-biomarker-line" id="detail-organ-biomarker">Biomarkers: AST, ALT, Bilirubin, GSH Depletion</span>
-              </div>
-              <div class="organ-risk-badge" id="detail-organ-risk-badge">12.4% SAFE</div>
-            </div>
-
-            <!-- Progress bar of peak organ risk -->
-            <div class="risk-meter-track" style="margin-top:8px;">
-              <div class="risk-meter-fill" id="detail-organ-risk-bar" style="width: 12.4%"></div>
-            </div>
-
-            <div class="organ-conc-row" style="margin-top:8px;">
-              <span>Peak Organ C_max: <strong id="detail-organ-cmax" class="mono">18.4 mg/L</strong></span>
-              <span>Tox Threshold: <strong id="detail-organ-thresh" class="mono">65.0 mg/L</strong></span>
-            </div>
-
-            <p class="organ-mech-text" id="detail-organ-mechanism" style="margin-top:8px;">
-              CYP2E1 bioactivation produces electrophilic NAPQI. When hepatic glutathione (GSH) drops below 30%, NAPQI forms covalent protein adducts on mitochondrial proteins, disrupting Ca2+ homeostasis and triggering centrilobular necrosis.
-            </p>
-          </div>
-
-          <!-- 3D AlphaFold Target Receptor PDB Viewer -->
-          <div style="margin-top:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <div>
-                <span style="font-size:0.65rem;color:var(--accent-purple);font-family:var(--font-display);letter-spacing:0.1em;display:block;">ALPHAFOLD DB × RCSB PDB 3D RECEPTOR</span>
-                <strong id="receptor-pdb-badge" style="font-size:0.82rem;color:var(--text-primary);">PDB: 1Z10 (CYP2E1)</strong>
-              </div>
-              <div class="viewer-style-btns">
-                <button class="style-btn active" data-molstyle="cartoon">Cartoon</button>
-                <button class="style-btn" data-molstyle="surface">Surface</button>
-                <button class="style-btn" data-molstyle="stick">Active Site</button>
-              </div>
-            </div>
-
-            <div id="receptor-pdb-viewer" class="mol-viewer-box" style="height:205px;">
-              <div class="mol-overlay-tag" id="receptor-overlay-tag">Loading 3D Protein Target...</div>
-            </div>
-
-            <!-- Live AlphaFold DB Confidence Bar -->
-            <div id="af-live-ebi-badge" style="margin-top:6px;padding:7px 10px;border-radius:6px;background:rgba(0,242,254,0.06);border:1px solid rgba(0,242,254,0.22);font-size:0.69rem;display:flex;justify-content:space-between;align-items:center;">
-              <span>AlphaFold DB (<b id="af-ebi-id" class="mono">AF-P05181-F1</b>)</span>
-              <span id="af-ebi-plddt" class="mono" style="color:var(--accent-emerald);">pLDDT: 92.6 · ΔG: -7.8 kcal/mol</span>
-            </div>
-
-            <div class="receptor-caption" id="receptor-caption" style="margin-top:6px;">
-              <strong>Target:</strong> Human Cytochrome P450 2E1 (CYP2E1) — Heme-thiolate monooxygenase responsible for APAP → NAPQI bioactivation.
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT TAB 2: PK/PD Time-Series Chart -->
-        <div id="rtab-pkpd" class="right-tab-pane hidden">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:0.75rem;font-weight:700;color:var(--text-primary);" id="lbl-chart-title">24-Hour Plasma & Organ Concentration + Toxicity Hazard</span>
-            <div class="chart-tab-group">
-              <button class="chart-tab active" data-chartmode="pk">PK (mg/L)</button>
-              <button class="chart-tab" data-chartmode="tox">Organ Risk (%)</button>
-            </div>
-          </div>
-
-          <div class="chart-container-wrap" style="height:220px;">
-            <canvas id="pkpd-chart"></canvas>
-          </div>
-
-          <div class="Derived-pk-box" style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
-            <div class="pk-stat">
-              <span class="pk-label">Plasma C_max</span>
-              <span class="pk-value" id="chart-stat-cmax">-- mg/L</span>
-            </div>
-            <div class="pk-stat">
-              <span class="pk-label">AUC_0-24h</span>
-              <span class="pk-value" id="chart-stat-auc">-- mg·h/L</span>
-            </div>
-            <div class="pk-stat">
-              <span class="pk-label">Overall Status</span>
-              <span class="pk-value" id="overall-safety-pill">SAFE</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT TAB 3: Gemini 4 Argon Mechanistic Consultation + Verification Gate -->
-        <div id="rtab-argon" class="right-tab-pane hidden">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div>
-              <span style="font-size:0.65rem;color:var(--accent-purple);font-family:var(--font-display);">FRONTIER REASONING (1M CONTEXT)</span>
-              <h3 style="font-size:0.86rem;color:var(--text-primary);" id="lbl-argon-header">Gemini 4 Argon Mechanistic Toxicology</h3>
-            </div>
-            <button id="btn-run-argon" class="btn-argon-consult">
-              ✨ <span id="lbl-btn-run-argon">Consult Argon AI</span>
-            </button>
-          </div>
-
-          <div id="argon-output-box" class="argon-output-box" style="max-height:220px;">
-            <div class="argon-placeholder" id="lbl-argon-placeholder">
-              Click <strong>"Consult Argon AI"</strong> to run deep mechanistic toxicology analysis grounded in your 7-week Toxicology Lecture Curriculum, PK/PD differential equations, and AlphaFold 3 structural binding parameters.
-            </div>
-          </div>
-
-          <!-- Clinical / Researcher Verification Gate -->
-          <div class="verification-gate-card" style="margin-top:10px;">
-            <div class="gate-header">
-              <span class="gate-icon">🛡️</span>
-              <div>
-                <h4 id="lbl-gate-title">Clinical / Researcher Verification Gate</h4>
-                <p id="lbl-gate-sub">Human-in-the-Loop verification required before exporting protocol</p>
-              </div>
-            </div>
-            <label class="gate-checkbox-label">
-              <input type="checkbox" id="chk-clinical-verify" />
-              <span id="lbl-gate-chk">I have verified the simulated organ accumulation, CrCl/Vd scaling, and receptor toxicity pathways for educational/research use.</span>
-            </label>
-            <button id="btn-export-report" class="btn-export-report" disabled>
-              📄 <span id="lbl-btn-export">Export Verified Simulation Protocol (JSON)</span>
-            </button>
-          </div>
+    <!-- Bottom timeline -->
+    <footer class="timeline" id="timeline">
+      <button type="button" class="btn btn-icon" id="btn-play-pause" data-i18n-title="tl.pause" title="Pause"><svg class="ic"><use href="#i-pause"/></svg></button>
+      <button type="button" class="btn btn-icon" id="btn-reset-time" data-i18n-title="tl.restart" title="Restart"><svg class="ic"><use href="#i-restart"/></svg></button>
+      <div class="tl-scrub">
+        <input type="range" id="time-scrubber" min="0" max="240" step="1" value="0" aria-label="Time" />
+        <div class="tl-labels">
+          <span class="mono" id="time-current-label">t 0.0 h</span>
+          <span class="tl-phase" id="phase-status-label">—</span>
+          <span class="mono" id="time-end-label">24 h</span>
         </div>
       </div>
-    </aside>
-
-    <!-- FLOATING BOTTOM ORGAN SELECTOR RIBBON (Click any organ to Warp Camera + Open Inspector) -->
-    <div class="organ-ribbon" id="organ-ribbon">
-      <button class="organ-pill active" data-organ="liver">
-        <span>🟤 Liver (CYP2E1)</span>
-        <b class="risk-num" id="ribbon-risk-liver">0%</b>
-      </button>
-      <button class="organ-pill" data-organ="kidney">
-        <span>🫘 Kidney (S2/S3)</span>
-        <b class="risk-num" id="ribbon-risk-kidney">0%</b>
-      </button>
-      <button class="organ-pill" data-organ="heart">
-        <span>❤️ Heart (hERG)</span>
-        <b class="risk-num" id="ribbon-risk-heart">0%</b>
-      </button>
-      <button class="organ-pill" data-organ="brain">
-        <span>🧠 CNS / Brain</span>
-        <b class="risk-num" id="ribbon-risk-brain">0%</b>
-      </button>
-      <button class="organ-pill" data-organ="lungs">
-        <span>🫁 Lungs</span>
-        <b class="risk-num" id="ribbon-risk-lungs">0%</b>
-      </button>
-      <button class="organ-pill" data-organ="blood">
-        <span>🩸 Blood / RBC</span>
-        <b class="risk-num" id="ribbon-risk-blood">0%</b>
-      </button>
-      <button class="organ-pill" data-organ="ocular">
-        <span>👁️ Ocular / Retina</span>
-        <b class="risk-num" id="ribbon-risk-ocular">0%</b>
-      </button>
-      <button class="organ-pill" data-organ="gi">
-        <span>🧪 GI Tract</span>
-        <b class="risk-num" id="ribbon-risk-gi">0%</b>
-      </button>
-    </div>
-
-    <!-- BOTTOM FLOATING TIMELINE PLAYBACK HUD -->
-    <footer class="lab-hud-bottom holo">
-      <div class="timeline-controls">
-        <button id="btn-play-pause" class="btn-icon-circle" title="Play / Pause 24h PK/PD Time-Lapse">⏸</button>
-        <button id="btn-reset-time" class="btn-icon-circle" title="Reset to t = 0h">⏮</button>
-        <select id="playback-speed" class="speed-select" title="Simulation Speed">
-          <option value="0.5">0.5×</option>
-          <option value="1" selected>1.0×</option>
-          <option value="2">2.0×</option>
-          <option value="4">4.0×</option>
-        </select>
+      <div class="tl-readout">
+        <span class="tl-k" data-i18n="tl.plasma">Plasma C(t)</span>
+        <span class="mono tl-v" id="live-plasma-conc">—</span>
       </div>
-
-      <div class="timeline-slider-wrap">
-        <div class="timeline-labels">
-          <span id="time-current-label" class="mono">t = 0.0 h</span>
-          <span id="phase-status-label" class="phase-tag">Absorption & Distribution Phase</span>
-          <span class="mono">t = 24.0 h</span>
-        </div>
-        <input type="range" id="time-scrubber" min="0" max="240" step="1" value="0" />
-      </div>
-
-      <!-- Live Readout at Current Time t -->
-      <div class="hud-live-metrics">
-        <div class="hud-metric">
-          <span class="m-label">Plasma C(t)</span>
-          <span class="m-val" id="live-plasma-conc">0.00 mg/L</span>
-        </div>
-        <div class="hud-metric">
-          <span class="m-label">Target Occ.</span>
-          <span class="m-val" id="live-occupancy">0.0%</span>
-        </div>
-        <div class="hud-metric">
-          <span class="m-label">Peak Organ</span>
-          <span class="m-val" id="live-peak-organ">Liver</span>
-        </div>
-      </div>
+      <select id="playback-speed" class="select-sm" aria-label="Speed">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
     </footer>
+
+    <div class="hover-tip" id="organ-tooltip" hidden></div>
+    <div class="toast" id="toast" role="status" hidden></div>
   </main>
 
-  <!-- ====================================================================
-       MODAL 1: PHASE 2 ALPHAFOLD 3 DE NOVO STRUCTURE-TO-PK/PD CO-FOLDING
-       ==================================================================== -->
-  <div id="modal-alphafold" class="modal-backdrop hidden">
-    <div class="modal-card modal-lg holo">
-      <div class="modal-header">
-        <div>
-          <span class="modal-eyebrow">PHASE 2 · DE NOVO MOLECULAR STRUCTURE TO SYSTEMIC PK/PD</span>
-          <h2>🧬 AlphaFold 3 Co-Folding & Uncharacterized Drug Approximator</h2>
-        </div>
-        <button class="btn-close-modal" data-close="modal-alphafold">✕</button>
-      </div>
+  <div class="info-pop" id="info-pop" role="tooltip" hidden></div>
+
+  <!-- =========================================================
+       MODAL: novel compound (AF3 job + heuristic estimate)
+       ========================================================= -->
+  <div id="modal-alphafold" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="af3-title">
+      <header class="modal-head">
+        <h2 id="af3-title" data-i18n="af3.title">Novel compound estimate</h2>
+        <button type="button" class="btn btn-icon" data-close="modal-alphafold" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button>
+      </header>
       <div class="modal-body">
-        <p class="modal-intro">
-          How can we simulate a <strong>novel drug candidate or uncharacterized compound</strong> that lacks clinical PK/PD profiles?
-          Enter a novel SMILES structure and select a human target receptor below. We combine <strong>AlphaFold 3 binding energetics ($\Delta G_{\text{bind}}$, ipTM, pLDDT)</strong> with physicochemical QSAR descriptors to approximate $V_d, CL, k_a, EC_{50}$ and launch a full 3D body simulation.
-        </p>
-
-        <div class="af3-form-grid">
-          <div class="control-group">
-            <label for="af3-drug-name">Novel Candidate Name</label>
-            <input type="text" id="af3-drug-name" value="NOVEL-AF3-774 (Experimental Kinase/Channel Modulator)" />
-          </div>
-          <div class="control-group">
-            <label for="af3-target-select">Primary Off-Target Receptor (AlphaFold 3 Complex)</label>
-            <select id="af3-target-select">
-              <option value="CYP2E1">Hepatic CYP2E1 Monooxygenase (PDB: 1Z10)</option>
-              <option value="hERG" selected>Cardiac hERG K+ Channel Pore (PDB: 5VA1)</option>
-              <option value="G6PD">Erythrocyte G6PD Dimer Interface (PDB: 2BH9)</option>
-              <option value="Megalin_Cubn">Renal Proximal Tubule Megalin/Cubilin (PDB: 2FYL)</option>
-            </select>
-          </div>
-          <div class="control-group full-width">
-            <label for="af3-smiles">SMILES Structure or Chemical Formula</label>
-            <input type="text" id="af3-smiles" value="CC(C)NCC(O)COc1cccc2ccccc12" />
-            <div class="preset-smiles-row">
-              <span>Quick Presets:</span>
-              <button type="button" class="smiles-chip" data-smiles="CC(C)NCC(O)COc1cccc2ccccc12" data-name="AF3-CardioLipid-88" data-dg="-9.8" data-mw="385" data-logp="4.1">Lipophilic hERG Blocker (ΔG -9.8)</button>
-              <button type="button" class="smiles-chip" data-smiles="CC(=O)Nc1ccc(OCC(F)(F)F)cc1" data-name="AF3-Fluorophen-12" data-dg="-8.4" data-mw="233" data-logp="2.6">Fluorinated APAP Analog (ΔG -8.4)</button>
-              <button type="button" class="smiles-chip" data-smiles="NCCc1ccc(O)c(O)c1" data-name="AF3-HydroRenal-04" data-dg="-7.1" data-mw="290" data-logp="-1.2">Hydrophilic Nephro-Cation (ΔG -7.1)</button>
-            </div>
-          </div>
-
-          <div class="control-group">
-            <label for="af3-mw">Molecular Weight (g/mol)</label>
-            <input type="number" id="af3-mw" value="385.0" min="80" max="1200" step="5" />
-          </div>
-          <div class="control-group">
-            <label for="af3-logp">Lipophilicity ($\log P$)</label>
-            <input type="number" id="af3-logp" value="4.1" min="-4.0" max="8.0" step="0.1" />
-          </div>
-          <div class="control-group">
-            <label for="af3-dg">AlphaFold 3 $\Delta G_{\text{bind}}$ (kcal/mol)</label>
-            <input type="number" id="af3-dg" value="-9.8" min="-15.0" max="-3.0" step="0.1" />
-          </div>
-          <div class="control-group">
-            <label for="af3-plddt">AF3 Pocket Confidence (pLDDT)</label>
-            <input type="number" id="af3-plddt" value="91.4" min="40" max="99" step="0.5" />
-          </div>
+        <p class="body-text muted" data-i18n="af3.explain">Generates an AlphaFold 3 input job (protein sequence + ligand SMILES) and a heuristic PK/PD estimate. AlphaFold 3 is not run here.</p>
+        <div class="field">
+          <span class="field-label" data-i18n="af3.examples">Examples</span>
+          <div class="chip-row" id="af3-presets"></div>
         </div>
-
+        <div class="field">
+          <label class="field-label" for="af3-drug-name" data-i18n="af3.name">Name</label>
+          <input type="text" id="af3-drug-name" value="Cisplatin" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="af3-smiles" data-i18n="af3.smiles">Ligand SMILES</label>
+          <input type="text" id="af3-smiles" class="mono" value="N.N.Cl[Pt]Cl" spellcheck="false" />
+        </div>
+        <p class="muted small" id="af3-regimen-note"></p>
         <div class="modal-actions">
-          <button id="btn-run-af3-sim" class="btn-primary-glow">
-            🧬 Approximate PK/PD from AlphaFold 3 & Simulate in 3D Body
-          </button>
+          <button type="button" class="btn btn-primary" id="btn-run-af3-sim"><span id="af3-run-label" data-i18n="af3.run">Run estimate</span></button>
+        </div>
+
+        <div class="af3-result" id="af3-result" hidden>
+          <div class="kv-grid kv-grid-2">
+            <div class="kv kv-wide"><span class="kv-k" data-i18n="af3.target">Target protein</span><span class="kv-v" id="af3-res-target">—</span></div>
+            <div class="kv"><span class="kv-k"><span data-i18n="af3.plddt">Reference pLDDT</span> <button type="button" class="info" data-tip="plddt" aria-label="pLDDT">i</button></span><span class="kv-v mono" id="af3-res-plddt">—</span></div>
+            <div class="kv"><span class="kv-k"><span data-i18n="af3.dg">ΔG (heuristic)</span> <button type="button" class="info" data-tip="dg" aria-label="ΔG">i</button></span><span class="kv-v mono" id="af3-res-dg">—</span></div>
+            <div class="kv"><span class="kv-k"><span data-i18n="af3.kd">Kd (heuristic)</span> <button type="button" class="info" data-tip="kd" aria-label="Kd">i</button></span><span class="kv-v mono" id="af3-res-kd">—</span></div>
+            <div class="kv"><span class="kv-k">Vd · CL <span class="muted">(70 kg)</span> <button type="button" class="info" data-tip="vd" aria-label="Vd">i</button></span><span class="kv-v mono" id="af3-res-pk">—</span></div>
+            <div class="kv"><span class="kv-k" data-i18n="af3.peak">Highest organ risk</span><span class="kv-v mono" id="af3-res-peak">—</span></div>
+          </div>
+          <p class="muted small" id="af3-res-note" hidden></p>
+          <details class="json-details">
+            <summary data-i18n="af3.json">Job JSON</summary>
+            <pre class="json-pre mono" id="af3-json-pre"></pre>
+          </details>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="btn-af3-download"><svg class="ic"><use href="#i-download"/></svg><span data-i18n="af3.download">Download job JSON</span></button>
+            <button type="button" class="btn btn-primary" id="btn-af3-open" data-i18n="af3.open">Show in lab</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ====================================================================
-       MODAL 2: 7-WEEK TOXICOLOGY LECTURE CURRICULUM GROUNDING
-       ==================================================================== -->
-  <div id="modal-curriculum" class="modal-backdrop hidden">
-    <div class="modal-card modal-lg holo">
-      <div class="modal-header">
-        <div>
-          <span class="modal-eyebrow">ACADEMIC GROUNDING · PHARMACOTHERAPY & TOXICOLOGY LECTURES</span>
-          <h2>📚 7-Week Toxicology Curriculum Knowledge Base</h2>
-        </div>
-        <button class="btn-close-modal" data-close="modal-curriculum">✕</button>
-      </div>
+  <!-- =========================================================
+       MODAL: lecture notes
+       ========================================================= -->
+  <div id="modal-curriculum" class="modal" hidden>
+    <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="cur-title">
+      <header class="modal-head">
+        <h2 id="cur-title" data-i18n="cur.title">Lecture notes</h2>
+        <button type="button" class="btn btn-icon" data-close="modal-curriculum" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button>
+      </header>
       <div class="modal-body">
-        <p class="modal-intro">
-          Every organ toxicity threshold, reactive metabolite pathway, and clinical biomarker in <strong>PharmacoTwin 3D</strong> is directly grounded in your 7 Toxicology Lecture PDFs (`1_독성학 서론.pdf` through `6주_호흡기 독성.pdf`).
-        </p>
-        <div id="curriculum-cards-container" class="curriculum-grid">
-          <!-- Populated dynamically from /api/curriculum -->
-        </div>
+        <p class="body-text muted" data-i18n="cur.sub">Toxicology curriculum used to ground thresholds and mechanisms.</p>
+        <div id="curriculum-cards-container" class="curriculum-grid"></div>
       </div>
     </div>
   </div>
 
-  <!-- Scripts -->
   <script src="/static/js/body3d.js?v=4.0"></script>
   <script src="/static/js/app.js?v=4.0"></script>
 </body>
